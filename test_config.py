@@ -1,5 +1,5 @@
-dataset = ["toxigen"]
-model_path = ["toxigen"]
+dataset = ["hateval"]
+model_path = ["hateval"]
 
 tuning_param  = ["learning_rate","train_batch_size","eval_batch_size","nepoch","SEED","dataset","model_path"] ## list of possible paramters to be tuned
 

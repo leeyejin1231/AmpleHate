@@ -1,0 +1,7 @@
+easydict==1.9
+nlpaug==1.1.10
+numpy==1.19.5
+pandas==1.4.2
+sklearn==0.0
+transformers==4.2.1
+torch

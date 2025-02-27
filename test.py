@@ -9,7 +9,7 @@ import random
 from transformers import BertTokenizer
 from utils import NERTagger, get_dataloader, iter_product
 from model import CustomBERT
-import test_config
+from config import test_config
 from easydict import EasyDict as edict
 
 device = torch.device('cuda')

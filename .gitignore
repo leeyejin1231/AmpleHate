@@ -9,6 +9,7 @@
 ## PyTorch
 data/
 save/
+*.sh
 .coverage
 coverage.xml
 .dmypy.json

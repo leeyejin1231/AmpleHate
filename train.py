@@ -8,7 +8,7 @@ from tqdm import tqdm
 import random
 from transformers import BertTokenizer
 from utils import NERTagger, get_dataloader, iter_product
-from model import CustomBERT
+from model import CustomBERT, ContrastiveLossCosine
 from config import train_config
 from easydict import EasyDict as edict
 
@@ -29,7 +29,7 @@ def set_seed(seed=42):
     torch.backends.cudnn.benchmark = False
 
 
-def train_epoch(dataloader, model, optimizer, criterion):
+def train_epoch(dataloader, model, optimizer, criterion, loss_type):
     print("---Start train!---")
     model.train()
     total_loss = 0
@@ -41,7 +41,10 @@ def train_epoch(dataloader, model, optimizer, criterion):
 
         optimizer.zero_grad()
         outputs = model(input_ids, head_token_idx)
-        loss = criterion(outputs, labels)
+        if loss_type == "contrastive-learning":
+            loss = (criterion["lambda_loss"]*criterion["cross-entropy"](outputs,labels)) + ((1-criterion["lambda_loss"])*criterion["contrastive-learning"](outputs,labels))
+        else:
+            loss = criterion["cross-entropy"](outputs, labels)
 
         loss.backward()
         optimizer.step()
@@ -79,6 +82,7 @@ def train(log):
     tokenizer = BertTokenizer.from_pretrained(log.param.model_type)
     ner_tagger = NERTagger()
     MODEL_SAVE_PATH = f"./save/{log.param.dataset}/best_model.pth"
+    criterion = {"lambda_loss":log.param.lambda_loss, "cross-entropy": nn.CrossEntropyLoss(), "contrastive-learning":ContrastiveLossCosine()}
 
     if "ihc" in log.param.dataset:
         train_loader = get_dataloader(f"./data/{log.param.dataset}/train.tsv", tokenizer, ner_tagger=ner_tagger, use_ner=True,  batch_size=log.param.train_batch_size)
@@ -89,13 +93,12 @@ def train(log):
 
     model = CustomBERT(log.param.model_type, hidden_dim=log.param.hidden_size).to(device)
     optimizer = optim.AdamW(model.parameters(), lr=log.param.learning_rate)
-    criterion = nn.CrossEntropyLoss()
 
     best_f1_score = 0.0
     num_epochs = log.param.nepoch
     for epoch in range(num_epochs):
         print(f"epoch {epoch+1}")
-        train_loss = train_epoch(train_loader, model, optimizer, criterion)
+        train_loss = train_epoch(train_loader, model, optimizer, criterion, log.param.loss)
         acc, f1 = evaluate(valid_loader, model)
         print(f"Epoch {epoch+1}, Loss: {train_loss:.4f}, Accuracy: {acc:.4f}, F1-Score: {f1:.4f}")
 

@@ -25,6 +25,17 @@ class HeadAttention(nn.Module):
         return output
     
 
+class LinearHeadAttention(nn.Module):
+    def __init__(self, head_dim):
+        super(HeadAttention, self).__init__()
+        self.head_dim = head_dim
+
+        self.W = nn.Linear(head_dim, head_dim, bias=False)
+
+    def forward(self, _, head_token_embedding):
+        return self.W(head_token_embedding)
+    
+
 class CustomBERT(nn.Module):
     def __init__(self, bert_model_name, hidden_dim):
         super(CustomBERT, self).__init__()
@@ -33,6 +44,7 @@ class CustomBERT(nn.Module):
 
         # Head-Attention 추가
         self.head_attention = HeadAttention(hidden_dim, hidden_dim)
+        # self.head_attention = LinearHeadAttention(hidden_dim)
 
         # 최종 분류기
         self.classifier = nn.Linear(hidden_dim, 2)  # non-hate(0) / hate(1) 이진 분류

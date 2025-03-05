@@ -8,8 +8,11 @@ eval_batch_size = [16]
 hidden_size = 768
 nepoch = [6]    
 learning_rate = [2e-5]
+# loss = "contrastive-learning"
+loss = "cross-entropy"
+lambda_loss = 0.5
 
 model_type = "bert-base-uncased"
-SEED = [0]
+SEED = [50]
 
-param = {"dataset":dataset,"learning_rate":learning_rate,"train_batch_size":train_batch_size,"eval_batch_size":eval_batch_size,"hidden_size":hidden_size,"nepoch":nepoch,"dataset":dataset, "SEED":SEED,"model_type":model_type}
+param = {"lambda_loss":lambda_loss,"loss":loss,"dataset":dataset,"learning_rate":learning_rate,"train_batch_size":train_batch_size,"eval_batch_size":eval_batch_size,"hidden_size":hidden_size,"nepoch":nepoch,"dataset":dataset, "SEED":SEED,"model_type":model_type}

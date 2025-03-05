@@ -1,13 +1,10 @@
-import torch.optim as optim
 import torch
 import numpy as np
-import torch.nn as nn
-import torch.optim as optim
 from sklearn.metrics import accuracy_score, f1_score
 from tqdm import tqdm
 import random
 from transformers import BertTokenizer
-from utils import NERTagger, get_dataloader, iter_product
+from utils import get_dataloader, iter_product
 from model import CustomBERT
 from config import test_config
 from easydict import EasyDict as edict

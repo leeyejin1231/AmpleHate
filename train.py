@@ -1,5 +1,6 @@
 import torch.optim as optim
 import torch
+import json
 import numpy as np
 import torch.nn as nn
 import torch.optim as optim
@@ -96,17 +97,31 @@ def train(log):
 
     best_f1_score = 0.0
     num_epochs = log.param.nepoch
+    df = {"param":{}, "train":{"train_loss":[], "train_f1":[]}}
+    df["param"]["dataset"] = log.param.dataset
+    df["param"]["train_batch_size"] = log.param.train_batch_size
+    df["param"]["learning_rate"] = log.param.learning_rate
+    df["param"]["loss"] = log.param.loss
+    df["param"]["SEED"] = log.param.SEED
     for epoch in range(num_epochs):
         print(f"epoch {epoch+1}")
         train_loss = train_epoch(train_loader, model, optimizer, criterion, log.param.loss)
         acc, f1 = evaluate(valid_loader, model)
         print(f"Epoch {epoch+1}, Loss: {train_loss:.4f}, Accuracy: {acc:.4f}, F1-Score: {f1:.4f}")
+        
+        df["train"]["loss"].append(train_loss)
+        df["train"]["f1"].append(f1)
 
         if f1 > best_f1_score:
             best_f1_score = f1
             torch.save(model.state_dict(), MODEL_SAVE_PATH)
+            df["stop_epoch"] = epoch+1
+            df["valid_f1_score"] = f1
+            df["valid_loss"] = train_loss
             print(f"=== Model saved at epoch {epoch+1} with F1-score: {f1:.4f} ===")
-
+    
+    with open(f'save/{log.param.dataset}/log.json', 'w') as file:
+        json.dump(df, file)
 
 if __name__ == '__main__':
     tuning_param = train_config.tuning_param

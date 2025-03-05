@@ -24,7 +24,10 @@ class CustomNERDataset(Dataset):
 
     def __getitem__(self, idx):
         row = self.data.iloc[idx]
-        if "sbic" in self.csv_file:
+        if "ihc" in self.csv_file:
+            class2int = {'not_hate':0 ,'implicit_hate': 1}
+            text, label = row["post"], class2int[row["class"]]
+        elif "sbic" in self.csv_file:
             class2int = {'not_offensive':0 ,'offensive': 1}
             text, label = row["post"], class2int[row["offensiveLABEL"]]
         elif "dyna" in self.csv_file:

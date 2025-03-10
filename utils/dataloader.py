@@ -33,6 +33,8 @@ class CustomNERDataset(Dataset):
         elif "dyna" in self.csv_file:
             class2int = {'nothate':0 ,'hate': 1}
             text, label = row["text"], class2int[row["label"]]
+        elif "SST" in self.csv_file:
+            text, label = row['sentence'], row['label']
         else:
             text, label = row["post"], row["label"]
 

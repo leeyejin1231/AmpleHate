@@ -58,11 +58,11 @@ class CustomBERT(nn.Module):
         head_token_embeddings = outputs.last_hidden_state[torch.arange(batch_size), head_token_idx, :]
 
         # Head-Token이 없을 경우 기본적으로 Self-Attention 사용
-        if torch.all(head_token_idx == 0):  
-            final_embedding = cls_embedding  # 기본적인 [CLS] Embedding 사용
-        else:
-            head_attention_output = self.head_attention(cls_embedding, head_token_embeddings)
-            final_embedding = cls_embedding + head_attention_output  # Head-Attention 결합
+        # if torch.all(head_token_idx == 0):  
+        #     final_embedding = cls_embedding  # 기본적인 [CLS] Embedding 사용
+        # else:
+        head_attention_output = self.head_attention(cls_embedding, head_token_embeddings)
+        final_embedding = cls_embedding + head_attention_output  # Head-Attention 결합
 
         logits = self.classifier(final_embedding)
         return logits

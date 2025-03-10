@@ -59,4 +59,4 @@ class NERProcessor:
         else:
             head_token_idx = 0  # 개체명이 없으면 [CLS]를 Head-Token으로 설정
 
-        return token_ids, head_token_idx
+        return token_ids, 0

@@ -88,6 +88,9 @@ def train(log):
     if "ihc" in log.param.dataset:
         train_loader = get_dataloader(f"./data/{log.param.dataset}/train.tsv", tokenizer, ner_tagger=ner_tagger, use_ner=True,  batch_size=log.param.train_batch_size)
         valid_loader = get_dataloader(f"./data/{log.param.dataset}/valid.tsv", tokenizer, ner_tagger=None, use_ner=False, batch_size=log.param.train_batch_size)
+    elif "SST" in log.param.dataset:
+        train_loader = get_dataloader(f"./data/{log.param.dataset}/train.tsv", tokenizer, ner_tagger=ner_tagger, use_ner=True,  batch_size=log.param.train_batch_size)
+        valid_loader = get_dataloader(f"./data/{log.param.dataset}/dev.tsv", tokenizer, ner_tagger=None, use_ner=False, batch_size=log.param.train_batch_size)
     else:
         train_loader = get_dataloader(f"./data/{log.param.dataset}/train.csv", tokenizer, ner_tagger=ner_tagger, use_ner=True,  batch_size=log.param.train_batch_size)
         valid_loader = get_dataloader(f"./data/{log.param.dataset}/valid.csv", tokenizer, ner_tagger=None, use_ner=False, batch_size=log.param.train_batch_size)
@@ -97,7 +100,7 @@ def train(log):
 
     best_f1_score = 0.0
     num_epochs = log.param.nepoch
-    df = {"param":{}, "train":{"train_loss":[], "train_f1":[]}}
+    df = {"param":{}, "train":{"loss":[], "f1":[]}}
     df["param"]["dataset"] = log.param.dataset
     df["param"]["train_batch_size"] = log.param.train_batch_size
     df["param"]["learning_rate"] = log.param.learning_rate

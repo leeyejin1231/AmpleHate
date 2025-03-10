@@ -1,5 +1,5 @@
 
-dataset = ["dynahate"]
+dataset = ["SST-2"]
 
 tuning_param  = ["learning_rate","train_batch_size","eval_batch_size","nepoch","SEED","dataset"] ## list of possible paramters to be tuned
 

@@ -55,7 +55,7 @@ def test(log):
     tokenizer = BertTokenizer.from_pretrained(log.param.model_type)
     model = CustomBERT(log.param.model_type, hidden_dim=log.param.hidden_size).to(device)
 
-    if "ihc" in log.param.dataset:
+    if "ihc" in log.param.dataset or "SST" in log.param.dataset:
         test_loader = get_dataloader(f"./data/{log.param.dataset}/test.tsv", tokenizer, ner_tagger=None, use_ner=False, batch_size=16, shuffle=False)
     else:
         test_loader = get_dataloader(f"./data/{log.param.dataset}/test.csv", tokenizer, ner_tagger=None, use_ner=False, batch_size=16, shuffle=False)

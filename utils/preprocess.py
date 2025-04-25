@@ -48,6 +48,7 @@ class NERProcessor:
         """
         head_token = self.extract_head_token(text)
         tokens = self.tokenizer.tokenize(text)
+        # token_ids = self.tokenizer.encode(text, truncation=True, padding="max_length", max_length=512, return_attention_mask=True)
         token_ids = self.tokenizer.encode(text, truncation=True, padding="max_length", max_length=512)
 
         # Head-Token이 존재하는 경우 인덱스를 찾음
@@ -59,4 +60,4 @@ class NERProcessor:
         else:
             head_token_idx = 0  # 개체명이 없으면 [CLS]를 Head-Token으로 설정
 
-        return token_ids, 0
+        return token_ids, head_token_idx

@@ -1,6 +1,5 @@
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
 from transformers import BertModel
 
 class HeadAttention(nn.Module):
@@ -8,6 +7,8 @@ class HeadAttention(nn.Module):
         super(HeadAttention, self).__init__()
         self.hidden_dim = hidden_dim
         self.head_dim = head_dim
+
+        self.softmax = nn.Softmax(dim=-1)
 
         self.W_q = nn.Linear(hidden_dim, head_dim, bias=False)
         self.W_k = nn.Linear(hidden_dim, head_dim, bias=False)
@@ -19,7 +20,8 @@ class HeadAttention(nn.Module):
         V_h = self.W_v(head_token_embedding)  # 특정 토큰의 Value
 
         attention_scores = torch.matmul(Q_h, K_h.T) / (self.head_dim ** 0.5)
-        attention_weights = F.softmax(attention_scores, dim=-1)
+        attention_scores = attention_scores.float()
+        attention_weights = self.softmax(attention_scores)
 
         output = torch.matmul(attention_weights, V_h)
         return output
@@ -37,10 +39,12 @@ class LinearHeadAttention(nn.Module):
     
 
 class CustomBERT(nn.Module):
-    def __init__(self, bert_model_name, hidden_dim):
+    def __init__(self, bert_model_name, hidden_dim, e=1e-3):
         super(CustomBERT, self).__init__()
+
         self.bert = BertModel.from_pretrained(bert_model_name)
         self.hidden_dim = hidden_dim
+        self.e = e
 
         # Head-Attention 추가
         self.head_attention = HeadAttention(hidden_dim, hidden_dim)
@@ -50,19 +54,25 @@ class CustomBERT(nn.Module):
         self.classifier = nn.Linear(hidden_dim, 2)  # non-hate(0) / hate(1) 이진 분류
 
     def forward(self, input_ids, head_token_idx):
-        outputs = self.bert(input_ids)
-        cls_embedding = outputs.last_hidden_state[:, 0, :]  # [CLS] 토큰 출력
-
+        outputs = self.bert(input_ids, output_hidden_states=True)
+        # Get the hidden states from the middle layer (6th layer for bert-base which has 12 layers)
+        middle_layer_output = outputs.hidden_states[6]
+        cls_embedding = middle_layer_output[:, 0, :]  # [CLS] 토큰 출력
+ 
         # Head-Token 위치 추출
         batch_size = input_ids.shape[0]
         head_token_embeddings = outputs.last_hidden_state[torch.arange(batch_size), head_token_idx, :]
 
         # Head-Token이 없을 경우 기본적으로 Self-Attention 사용
         # if torch.all(head_token_idx == 0):  
-        #     final_embedding = cls_embedding  # 기본적인 [CLS] Embedding 사용
+        # final_embedding = cls_embedding  # 기본적인 [CLS] Embedding 사용
         # else:
         head_attention_output = self.head_attention(cls_embedding, head_token_embeddings)
-        final_embedding = cls_embedding + head_attention_output  # Head-Attention 결합
+        final_embedding = cls_embedding + head_attention_output * self.e  # Head-Attention 결합
 
         logits = self.classifier(final_embedding)
         return logits
+    
+
+
+    

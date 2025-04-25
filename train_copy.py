@@ -9,7 +9,7 @@ from tqdm import tqdm
 import random
 from transformers import BertTokenizer
 from utils import NERTagger, get_dataloader, iter_product
-from model import CustomBERT, ContrastiveLossCosine
+from model import CustomBERT, ContrastiveLossCosine, ILCBertClassifier
 from config import train_config
 from easydict import EasyDict as edict
 
@@ -37,15 +37,13 @@ def train_epoch(dataloader, model, optimizer, criterion, loss_type):
 
     for batch in tqdm(dataloader):
         input_ids = batch["input_ids"].to(device)
-        head_token_idx = batch["head_token_idx"].to(device)
         labels = batch["labels"].to(device)
 
+        for param in model.bert.parameters():
+            param.requires_grad = False
+
         optimizer.zero_grad()
-        outputs = model(input_ids, head_token_idx)
-        if loss_type == "contrastive-learning":
-            loss = (criterion["lambda_loss"]*criterion["cross-entropy"](outputs,labels)) + ((1-criterion["lambda_loss"])*criterion["contrastive-learning"](outputs,labels))
-        else:
-            loss = criterion["cross-entropy"](outputs, labels)
+        loss, _ = model(input_ids, labels)
 
         loss.backward()
         optimizer.step()
@@ -57,24 +55,37 @@ def train_epoch(dataloader, model, optimizer, criterion, loss_type):
 def evaluate(dataloader, model):
     print("---Start Valid!---")
     model.eval()
-    predictions, true_labels = [], []
+    all_preds = [[] for _ in range(log.param.num_layers)]
+    all_labels = []
+    correct_counts = [0] * log.param.num_layers
+    total = 0
 
     with torch.no_grad():
         for batch in tqdm(dataloader):
             input_ids = batch["input_ids"].to(device)
-            head_token_idx = batch["head_token_idx"].to(device)
             labels = batch["labels"].to(device)
 
-            outputs = model(input_ids, head_token_idx)
-            preds = torch.argmax(outputs, dim=1)
+            logits_list = model(input_ids)
 
-            predictions.extend(preds.cpu().numpy())
-            true_labels.extend(labels.cpu().numpy())
-
-    accuracy = accuracy_score(true_labels, predictions)
-    f1 = f1_score(true_labels, predictions, average="weighted")
+            for idx, logits in enumerate(logits_list):
+                preds = torch.argmax(logits, dim=-1)
+                correct_counts[idx] += (preds == labels).sum().item()
+                all_preds[idx].extend(preds.cpu().tolist())
+            
+            all_labels.extend(labels.cpu().tolist())
+            total += labels.size(0)
+                
+    accuracies = [correct / total for correct in correct_counts]
+    f1_scores = []
+    for idx in range(log.param.num_layers):
+        # Skip empty predictions
+        if len(all_preds[idx]) == 0:
+            f1_scores.append(0.0)
+            continue
+        f1_scores.append(f1_score(all_labels, all_preds[idx], average='binary', pos_label=1))
+    best_layer = int(torch.tensor(accuracies).argmax().item())
     
-    return accuracy, f1
+    return accuracies, f1_scores, best_layer
 
 
 def train(log):
@@ -95,8 +106,9 @@ def train(log):
         train_loader = get_dataloader(f"./data/{log.param.dataset}/train.csv", tokenizer, ner_tagger=ner_tagger, use_ner=True,  batch_size=log.param.train_batch_size)
         valid_loader = get_dataloader(f"./data/{log.param.dataset}/valid.csv", tokenizer, ner_tagger=None, use_ner=False, batch_size=log.param.train_batch_size)
 
-    model = CustomBERT(log.param.model_type, hidden_dim=log.param.hidden_size, e=log.param.e).to(device)
-    optimizer = optim.AdamW(model.parameters(), lr=log.param.learning_rate)
+    model = ILCBertClassifier(log.param.model_type).to(device)
+    # optimizer = optim.AdamW(model.parameters(), lr=log.param.learning_rate)
+    optimizer = optim.AdamW(model.ilc_classifiers.parameters(), lr=log.param.learning_rate)
 
     best_f1_score = 0.0
     num_epochs = log.param.nepoch
@@ -109,22 +121,22 @@ def train(log):
     for epoch in range(num_epochs):
         print(f"epoch {epoch+1}")
         train_loss = train_epoch(train_loader, model, optimizer, criterion, log.param.loss)
-        acc, f1 = evaluate(valid_loader, model)
-        print(f"Epoch {epoch+1}, Loss: {train_loss:.4f}, Accuracy: {acc:.4f}, F1-Score: {f1:.4f}")
+        accuracies, f1_scores, best_layer = evaluate(valid_loader, model)
+        print(f"Epoch {epoch+1}, Loss: {train_loss:.4f}, Accuracy: {accuracies[best_layer]:.4f}, F1-Score: {f1_scores[best_layer]:.4f}, Best Layer: {best_layer}")
         
-        df["train"]["loss"].append(train_loss)
-        df["train"]["f1"].append(f1)
+        # df["train"]["loss"].append(train_loss)
+        # df["train"]["f1"].append(f1_scores[best_layer])
 
-        if f1 > best_f1_score:
-            best_f1_score = f1
+        if f1_scores[best_layer] > best_f1_score:
+            best_f1_score = f1_scores[best_layer]
             torch.save(model.state_dict(), MODEL_SAVE_PATH)
-            df["stop_epoch"] = epoch+1
-            df["valid_f1_score"] = f1
-            df["valid_loss"] = train_loss
-            print(f"=== Model saved at epoch {epoch+1} with F1-score: {f1:.4f} ===")
+            # df["stop_epoch"] = epoch+1
+            # df["valid_f1_score"] = f1_score[best_layer]
+            # df["valid_loss"] = train_loss
+            print(f"=== Model saved at epoch {epoch+1} with F1-score: {f1_scores[best_layer]:.4f} ===")
     
-    with open(f'save/{log.param.dataset}/log.json', 'w') as file:
-        json.dump(df, file)
+    # with open(f'save/{log.param.dataset}/log.json', 'w') as file:
+    #     json.dump(df, file)
 
 if __name__ == '__main__':
     tuning_param = train_config.tuning_param

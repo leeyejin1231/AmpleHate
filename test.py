@@ -2,8 +2,9 @@ import torch
 import numpy as np
 from sklearn.metrics import accuracy_score, f1_score
 from tqdm import tqdm
+import pandas as pd
 import random
-from transformers import BertTokenizer
+from transformers import BertTokenizer, BertModel
 from utils import get_dataloader, iter_product
 from model import CustomBERT
 from config import test_config
@@ -37,7 +38,7 @@ def test_model(dataloader, model):
             head_token_idx = batch["head_token_idx"].to(device)
             labels = batch["labels"].to(device)
 
-            outputs = model(input_ids, head_token_idx)
+            outputs = model(input_ids, head_token_idx, )
             preds = torch.argmax(outputs, dim=1)
 
             predictions.extend(preds.cpu().numpy())
@@ -45,7 +46,7 @@ def test_model(dataloader, model):
 
     accuracy = accuracy_score(true_labels, predictions)
     f1 = f1_score(true_labels, predictions, average="weighted")
-    
+
     return accuracy, f1, predictions, true_labels
 
 
@@ -53,7 +54,7 @@ def test(log):
     set_seed(log.param.SEED)
 
     tokenizer = BertTokenizer.from_pretrained(log.param.model_type)
-    model = CustomBERT(log.param.model_type, hidden_dim=log.param.hidden_size).to(device)
+    model = CustomBERT(log.param.model_type, hidden_dim=log.param.hidden_size, e=log.param.e).to(device)
 
     if "ihc" in log.param.dataset or "SST" in log.param.dataset:
         test_loader = get_dataloader(f"./data/{log.param.dataset}/test.tsv", tokenizer, ner_tagger=None, use_ner=False, batch_size=16, shuffle=False)
@@ -62,8 +63,13 @@ def test(log):
     model.load_state_dict(torch.load(f"./save/{log.param.model_path}/best_model.pth"))
     model.to(device)
 
-    test_accuracy, test_f1, _, _ = test_model(test_loader, model)
+    test_accuracy, test_f1, predictions, _ = test_model(test_loader, model)
 
+    df = pd.DataFrame()
+    df["label"] = predictions
+    # df.to_csv(f'./save/{log.param.dataset}/SST-2.tsv', sep="\t", index=False)
+
+    print(f"Dataset: {log.param.dataset}")
     print(f"Test Accuracy: {test_accuracy*100:.2f}")
     print(f"Test F1-Score: {test_f1*100:.2f}")
 

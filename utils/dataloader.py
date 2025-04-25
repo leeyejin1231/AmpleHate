@@ -35,6 +35,10 @@ class CustomNERDataset(Dataset):
             text, label = row["text"], class2int[row["label"]]
         elif "SST" in self.csv_file:
             text, label = row['sentence'], row['label']
+            text = row['sentence']
+        elif "IMDB" in self.csv_file:
+            class2int = {'positive':0 ,'negative': 1}
+            text, label = row['review'], class2int[row["sentiment"]]
         else:
             text, label = row["post"], row["label"]
 

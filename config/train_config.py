@@ -1,5 +1,5 @@
 
-dataset = ["SST-2"]
+dataset = ["hateval"]
 
 tuning_param  = ["learning_rate","train_batch_size","eval_batch_size","nepoch","SEED","dataset"] ## list of possible paramters to be tuned
 
@@ -11,8 +11,10 @@ learning_rate = [2e-5]
 # loss = "contrastive-learning"
 loss = "cross-entropy"
 lambda_loss = 0.5
+e = 1e-3
 
 model_type = "bert-base-uncased"
-SEED = [50]
+SEED = [0]
+num_layers = 12
 
-param = {"lambda_loss":lambda_loss,"loss":loss,"dataset":dataset,"learning_rate":learning_rate,"train_batch_size":train_batch_size,"eval_batch_size":eval_batch_size,"hidden_size":hidden_size,"nepoch":nepoch,"dataset":dataset, "SEED":SEED,"model_type":model_type}
+param = {"num_layers":num_layers,"e":e, "lambda_loss":lambda_loss,"loss":loss,"dataset":dataset,"learning_rate":learning_rate,"train_batch_size":train_batch_size,"eval_batch_size":eval_batch_size,"hidden_size":hidden_size,"nepoch":nepoch,"dataset":dataset, "SEED":SEED,"model_type":model_type}

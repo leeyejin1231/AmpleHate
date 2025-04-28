@@ -8,6 +8,7 @@
 
 ## PyTorch
 data/
+dataset/
 save/
 *.sh
 .coverage

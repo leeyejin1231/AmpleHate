@@ -1,154 +1,164 @@
-import torch.optim as optim
-import torch
-import json
-import numpy as np
+import torch, numpy as np, random, json
 import torch.nn as nn
 import torch.optim as optim
-from sklearn.metrics import accuracy_score, f1_score
 from tqdm import tqdm
-import random
-from transformers import BertTokenizer
-from utils import NERTagger, get_dataloader, iter_product
-from model import CustomBERT, ContrastiveLossCosine, ILCBertClassifier
-from config import train_config
+from sklearn.metrics import f1_score, accuracy_score
+from transformers import AutoTokenizer
+from utils import get_dataloader, iter_product
+from config import train_config as config
+from model import BERT_ILC_Binary
 from easydict import EasyDict as edict
 
-device = torch.device('cuda')
+device = torch.device("cuda")
 
 
 def set_seed(seed=42):
-    """
-    랜덤 시드 고정
-    """
-    random.seed(seed)
-    np.random.seed(seed)
-    torch.manual_seed(seed)
-    torch.cuda.manual_seed_all(seed)  # GPU 사용 시에도 시드 고정
-
-    # CUDNN 설정 (연산 속도 vs 재현성 선택)
-    torch.backends.cudnn.deterministic = True
-    torch.backends.cudnn.benchmark = False
+    random.seed(seed); np.random.seed(seed); torch.manual_seed(seed); torch.cuda.manual_seed_all(seed)
 
 
-def train_epoch(dataloader, model, optimizer, criterion, loss_type):
-    print("---Start train!---")
-    model.train()
-    total_loss = 0
-
-    for batch in tqdm(dataloader):
+def train_epoch(model, train_loader, criterion, optimizer):
+    model.train(); tot=0
+    for batch in tqdm(train_loader, desc="train"):
         input_ids = batch["input_ids"].to(device)
-        labels = batch["labels"].to(device)
-
-        for param in model.bert.parameters():
-            param.requires_grad = False
+        attention_mask = batch["attention_mask"].to(device)
+        labels = batch["labels"].float().to(device)
 
         optimizer.zero_grad()
-        loss, _ = model(input_ids, labels)
+        logits_dict = model(input_ids, attention_mask)
+        loss = 0
 
+        for l,logits in logits_dict.items():
+            layer_loss = criterion(logits, labels)
+            probe = model.probes[str(l)]
+            if model.reg_type=="l1":
+                layer_loss += model.reg_weight*probe.weight.abs().sum()
+            else:
+                layer_loss += model.reg_weight*probe.weight.norm()
+            loss += layer_loss
+        
+        loss /= len(logits_dict)
         loss.backward()
         optimizer.step()
-        total_loss += loss.item()
+        tot+=loss.item()
 
-    return total_loss / len(dataloader)
+    return tot/len(train_loader)
 
 
-def evaluate(dataloader, model):
-    print("---Start Valid!---")
+def best_threshold(probs: np.ndarray, labels: np.ndarray,
+                   grid=np.linspace(0.05, 0.95, 19)):
+    """
+    probs  : (N,)  sigmoid 확률
+    labels : (N,)  0/1
+    grid   : 탐색할 임계값 리스트
+    return : (best_thr, best_f1)
+    """
+    best_t, best_f1 = 0.5, 0
+    for t in grid:
+        f1 = f1_score(labels, (probs >= t).astype(int))
+        acc = accuracy_score(labels, (probs >= t).astype(int))
+        if f1 > best_f1:
+            best_f1, best_t = f1, t
+    return best_t, best_f1, acc
+
+
+@torch.no_grad()
+def evaluate(model, valid_loader):
     model.eval()
-    all_preds = [[] for _ in range(log.param.num_layers)]
-    all_labels = []
-    correct_counts = [0] * log.param.num_layers
-    total = 0
+    # 레이어별 확률·라벨 저장
+    layer_probs   = {l: [] for l in model.probe_layers}
+    layer_labels  = {l: [] for l in model.probe_layers}
 
-    with torch.no_grad():
-        for batch in tqdm(dataloader):
-            input_ids = batch["input_ids"].to(device)
-            labels = batch["labels"].to(device)
+    for batch in tqdm(valid_loader, desc="eval"):
+        ids  = batch["input_ids"].to(device)
+        mask = batch["attention_mask"].to(device)
+        y    = batch["labels"].cpu().numpy()
 
-            logits_list = model(input_ids)
+        logits_dict = model(ids, mask)
+        for l, logits in logits_dict.items():
+            p = torch.sigmoid(logits).cpu().numpy()  # 확률
+            layer_probs[l].append(p)
+            layer_labels[l].append(y)
 
-            for idx, logits in enumerate(logits_list):
-                preds = torch.argmax(logits, dim=-1)
-                correct_counts[idx] += (preds == labels).sum().item()
-                all_preds[idx].extend(preds.cpu().tolist())
-            
-            all_labels.extend(labels.cpu().tolist())
-            total += labels.size(0)
-                
-    accuracies = [correct / total for correct in correct_counts]
-    f1_scores = []
-    for idx in range(log.param.num_layers):
-        # Skip empty predictions
-        if len(all_preds[idx]) == 0:
-            f1_scores.append(0.0)
-            continue
-        f1_scores.append(f1_score(all_labels, all_preds[idx], average='binary', pos_label=1))
-    best_layer = int(torch.tensor(accuracies).argmax().item())
-    
-    return accuracies, f1_scores, best_layer
+    # 레이어별 best threshold & F1
+    best_thr, best_f1, best_acc = {}, {}, {}
+    for l in model.probe_layers:
+        probs  = np.concatenate(layer_probs[l])
+        labels = np.concatenate(layer_labels[l])
+        t, f1, acc  = best_threshold(probs, labels)
+        best_thr[l], best_f1[l], best_acc[l] = float(t), float(f1), float(acc)
+
+    best_layer = max(best_f1, key=best_f1.get)
+    return best_f1, best_acc, best_layer, best_thr
+
+# def evaluate(model, valid_loader):
+#     model.eval()
+#     layer_scores = {l:[] for l in model.probe_layers}
+#     layer_accuracy = {l:[] for l in model.probe_layers}
+
+#     for batch in tqdm(valid_loader, desc="eval"):
+#         input_ids = batch["input_ids"].to(device)
+#         attention_mask = batch["attention_mask"].to(device)
+#         labels = batch["labels"].cpu().numpy()
+
+#         logits_dict = model(input_ids, attention_mask)
+
+#         for l,logits in logits_dict.items():
+#             preds = (torch.sigmoid(logits).cpu().numpy() >= .5).astype(int)
+#             layer_scores[l].append(f1_score(labels, preds, zero_division=0))
+#             layer_accuracy[l].append(accuracy_score(labels, preds))
+
+#     mean_f1 = {l:float(np.mean(v)) for l,v in layer_scores.items()}
+#     mean_accuracy = {l:float(np.mean(v)) for l,v in layer_accuracy.items()}
+#     best_l = max(mean_f1, key=mean_f1.get)
+
+#     return mean_f1, mean_accuracy, best_l
 
 
 def train(log):
-    set_seed(log.param.SEED)
+    set_seed(42)
 
-    tokenizer = BertTokenizer.from_pretrained(log.param.model_type)
-    ner_tagger = NERTagger()
-    MODEL_SAVE_PATH = f"./save/{log.param.dataset}/best_model.pth"
-    criterion = {"lambda_loss":log.param.lambda_loss, "cross-entropy": nn.CrossEntropyLoss(), "contrastive-learning":ContrastiveLossCosine()}
+    tokenizer = AutoTokenizer.from_pretrained(log.param.model_type)
+    train_loader = get_dataloader(f"./dataset/{log.param.dataset}/train.csv", tokenizer, batch_size=16)
+    valid_loader = get_dataloader("./dataset/ood.csv", tokenizer, batch_size=16, shuffle=False)
 
-    if "ihc" in log.param.dataset:
-        train_loader = get_dataloader(f"./data/{log.param.dataset}/train.tsv", tokenizer, ner_tagger=ner_tagger, use_ner=True,  batch_size=log.param.train_batch_size)
-        valid_loader = get_dataloader(f"./data/{log.param.dataset}/valid.tsv", tokenizer, ner_tagger=None, use_ner=False, batch_size=log.param.train_batch_size)
-    elif "SST" in log.param.dataset:
-        train_loader = get_dataloader(f"./data/{log.param.dataset}/train.tsv", tokenizer, ner_tagger=ner_tagger, use_ner=True,  batch_size=log.param.train_batch_size)
-        valid_loader = get_dataloader(f"./data/{log.param.dataset}/dev.tsv", tokenizer, ner_tagger=None, use_ner=False, batch_size=log.param.train_batch_size)
-    else:
-        train_loader = get_dataloader(f"./data/{log.param.dataset}/train.csv", tokenizer, ner_tagger=ner_tagger, use_ner=True,  batch_size=log.param.train_batch_size)
-        valid_loader = get_dataloader(f"./data/{log.param.dataset}/valid.csv", tokenizer, ner_tagger=None, use_ner=False, batch_size=log.param.train_batch_size)
+    ckpt   = torch.load(f"./save/{log.param.dataset}/best_ilc_binary_2.pth", map_location=device)
+    best_l = ckpt["best_layer"]
+    threshold = ckpt["threshold"][best_l]
+    print(f"Loaded checkpoint.  best_layer = {best_l}, best_threshold = {threshold}")
 
-    model = ILCBertClassifier(log.param.model_type).to(device)
-    # optimizer = optim.AdamW(model.parameters(), lr=log.param.learning_rate)
-    optimizer = optim.AdamW(model.ilc_classifiers.parameters(), lr=log.param.learning_rate)
+    model = BERT_ILC_Binary(log.param.model_type).to(device)
+    model.load_state_dict(ckpt["state"])
 
-    best_f1_score = 0.0
-    num_epochs = log.param.nepoch
-    df = {"param":{}, "train":{"loss":[], "f1":[]}}
-    df["param"]["dataset"] = log.param.dataset
-    df["param"]["train_batch_size"] = log.param.train_batch_size
-    df["param"]["learning_rate"] = log.param.learning_rate
-    df["param"]["loss"] = log.param.loss
-    df["param"]["SEED"] = log.param.SEED
-    for epoch in range(num_epochs):
-        print(f"epoch {epoch+1}")
-        train_loss = train_epoch(train_loader, model, optimizer, criterion, log.param.loss)
-        accuracies, f1_scores, best_layer = evaluate(valid_loader, model)
-        print(f"Epoch {epoch+1}, Loss: {train_loss:.4f}, Accuracy: {accuracies[best_layer]:.4f}, F1-Score: {f1_scores[best_layer]:.4f}, Best Layer: {best_layer}")
-        
-        # df["train"]["loss"].append(train_loss)
-        # df["train"]["f1"].append(f1_scores[best_layer])
+    # model = BERT_ILC_Binary(bert_name=log.param.model_type, probe_layers = [8, 9, 10, 11]).to(device)
+    optimizer = optim.AdamW(model.probes.parameters(), lr=log.param.learning_rate)
+    criterion = nn.BCEWithLogitsLoss()
+    best_f1=0.6463
+    best_layer=None
+    epochs = log.param.nepoch + 21
 
-        if f1_scores[best_layer] > best_f1_score:
-            best_f1_score = f1_scores[best_layer]
-            torch.save(model.state_dict(), MODEL_SAVE_PATH)
-            # df["stop_epoch"] = epoch+1
-            # df["valid_f1_score"] = f1_score[best_layer]
-            # df["valid_loss"] = train_loss
-            print(f"=== Model saved at epoch {epoch+1} with F1-score: {f1_scores[best_layer]:.4f} ===")
+    for epoch in range(21, epochs):
+        tr_loss = train_epoch(model, train_loader, criterion, optimizer)
+        mean_f1, accuracy, cur_best, best_threshold = evaluate(model, valid_loader)
+        print(f"[{epoch}] loss {tr_loss:.4f}  best layer {cur_best}  accuracy {accuracy[cur_best]:.4f}   F1 {mean_f1[cur_best]:.4f}")
+        if mean_f1[cur_best] > best_f1:
+            best_f1, best_layer, best_threshold = mean_f1[cur_best], cur_best, best_threshold
+            torch.save({"state":model.state_dict(),"best_layer":best_layer, "threshold":best_threshold},f"save/{log.param.dataset}/best_ilc_binary.pth")
+            print(" ** checkpoint saved **")
+    print("Finished. best layer=",best_layer," F1=",best_f1)
+
+
+if __name__ == "__main__":
+    tuning_param = config.tuning_param
     
-    # with open(f'save/{log.param.dataset}/log.json', 'w') as file:
-    #     json.dump(df, file)
-
-if __name__ == '__main__':
-    tuning_param = train_config.tuning_param
-    
-    param_list = [train_config.param[i] for i in tuning_param]
-    param_list = [tuple(tuning_param)] + list(iter_product(*param_list)) ## [(param_name),(param combinations)]
+    param_list = [config.param[i] for i in tuning_param]
+    param_list = [tuple(tuning_param)] + list(iter_product(*param_list)) 
 
     for param_com in param_list[1:]: # as first element is just name
         log = edict()
-        log.param = train_config.param
+        log.param = config.param
 
         for num,val in enumerate(param_com):
             log.param[param_list[0][num]] = val
 
         train(log)
+

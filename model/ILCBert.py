@@ -1,40 +1,47 @@
-import torch
-import torch.nn as nn
-from transformers import BertModel, BertConfig
+# model_ilc_binary.py
+import torch, torch.nn as nn
+from transformers import AutoModel
+from typing import List, Optional
 
-
-class ILCBertClassifier(nn.Module):
-    def __init__(self, bert_model_name: str):
-        super(ILCBertClassifier, self).__init__()
+class BERT_ILC_Binary(nn.Module):
+    def __init__(
+        self,
+        bert_name: str = "skt/kobert-base-v1",
+        probe_layers: Optional[List[int]] = None,
+        reg_type: str = "l1", reg_weight: float = 1e-4
+    ):
+        super().__init__()
+        self.bert = AutoModel.from_pretrained(bert_name, output_hidden_states=True)
+        state_dict = torch.load("save/hateval/best_model.pth", map_location="cpu")
+        state_dict = {k.replace("bert.", ""): v for k, v in state_dict.items()
+                    if k.startswith("bert.")}
+        _ = self.bert.load_state_dict(state_dict, strict=False) 
         
-        self.bert = BertModel.from_pretrained(bert_model_name, output_hidden_states=True)
-        hidden_size = self.bert.config.hidden_size
-        num_layers = self.bert.config.num_hidden_layers
+        for p in self.bert.parameters():
+            p.requires_grad = False
 
-        self.ilc_classifiers = nn.ModuleList([
-            nn.Linear(hidden_size, 2)
-            for _ in range(num_layers - 1)
-        ])
+        h = self.bert.config.hidden_size
+        num_hidden = self.bert.config.num_hidden_layers           # 12
+        if probe_layers is None:
+            # probe_layers = list(range(0, num_hidden-1))           # 0~10  (L-2)
+            probe_layers = [8, 9, 10, 11]
 
-    def forward(self, input_ids, labels=None):
-        outputs = self.bert(input_ids=input_ids, output_hidden_states=True)
-        hidden_states = outputs.hidden_states  # tuple: (layer0, layer1, ..., layerN)
+        self.probe_layers = probe_layers
+        self.probes = nn.ModuleDict({str(l): nn.Linear(h, 1) for l in probe_layers})
+        self.reg_type, self.reg_weight = reg_type, reg_weight
 
-        # Collect logits from each intermediate layer classifier
-        logits_list = []
-        for idx, classifier in enumerate(self.ilc_classifiers, start=1):
-            # hidden_states[idx] corresponds to the output of the idx-th layer
-            cls_emb = hidden_states[idx][:, 0, :]  # [CLS] token embedding
-            logits = classifier(cls_emb)
-            logits_list.append(logits)
+    def forward(self, input_ids, attention_mask):
+        hs = self.bert(input_ids, attention_mask).hidden_states   # tuple len 13
+        logits_dict = {}
+        mask = attention_mask.bool()
 
-        # If labels provided, compute combined loss
-        if labels is not None:
-            loss_fct = nn.CrossEntropyLoss()
-            losses = [loss_fct(logits, labels) for logits in logits_list]
-            total_loss = sum(losses)
-            return total_loss, logits_list
+        for l in self.probe_layers:
+            rep = hs[l+1]                                   # (B,T,H)
+            pooled = (rep * mask.unsqueeze(-1)).sum(1) / mask.sum(1, keepdim=True)
+            logits_dict[l] = self.probes[str(l)](pooled).squeeze(-1)
+        return logits_dict
 
-        # Otherwise return all logits for layer-specific evaluation
-        return logits_list
-
+        # for l in self.probe_layers:
+        #     cls = hs[l+1][:, 0, :]
+        #     logits_dict[l] = self.probes[str(l)](cls).squeeze(-1) # (B,)
+        # return logits_dict

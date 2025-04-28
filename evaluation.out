@@ -1,0 +1,18 @@
+### job start
+###
+### START DATE=Wed Mar 19 16:04:46 KST 2025
+### HOSTNAME=node35
+### CUDA_VISIBLE_DEVICES=0
+---Start dataload---
+---End dataload---
+Traceback (most recent call last):
+  File "/home/ssgyejin/contents/attention/test.py", line 84, in <module>
+    test(log)
+  File "/home/ssgyejin/contents/attention/test.py", line 62, in test
+    model.load_state_dict(torch.load(f"./save/{log.param.model_path}/best_model.pth"))
+  File "/home/ssgyejin/contents/env/attention/lib64/python3.9/site-packages/torch/nn/modules/module.py", line 2581, in load_state_dict
+    raise RuntimeError(
+RuntimeError: Error(s) in loading state_dict for CustomBERT:
+	Unexpected key(s) in state_dict: "bert.embeddings.position_ids". 
+###
+### END DATE=Wed Mar 19 16:05:03 KST 2025

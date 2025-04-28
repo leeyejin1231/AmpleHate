@@ -7,7 +7,7 @@
 # refactoring this file!
 
 ## PyTorch
-data/
+dataset/
 save/
 *.sh
 .coverage

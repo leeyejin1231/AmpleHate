@@ -35,10 +35,10 @@ def test_model(dataloader, model):
     with torch.no_grad():
         for batch in tqdm(dataloader):
             input_ids = batch["input_ids"].to(device)
-            head_token_idx = batch["head_token_idx"].to(device)
+            attention_mask = batch["attention_mask"].to(device)
             labels = batch["labels"].to(device)
 
-            outputs = model(input_ids, head_token_idx, )
+            outputs = model(input_ids, attention_mask)
             preds = torch.argmax(outputs, dim=1)
 
             predictions.extend(preds.cpu().numpy())
@@ -57,9 +57,9 @@ def test(log):
     model = CustomBERT(log.param.model_type, hidden_dim=log.param.hidden_size, e=log.param.e).to(device)
 
     if "ihc" in log.param.dataset or "SST" in log.param.dataset:
-        test_loader = get_dataloader(f"./data/{log.param.dataset}/test.tsv", tokenizer, ner_tagger=None, use_ner=False, batch_size=16, shuffle=False)
+        test_loader = get_dataloader(f"./dataset/{log.param.dataset}/test.tsv", tokenizer, batch_size=16, shuffle=False)
     else:
-        test_loader = get_dataloader(f"./data/{log.param.dataset}/test.csv", tokenizer, ner_tagger=None, use_ner=False, batch_size=16, shuffle=False)
+        test_loader = get_dataloader(f"./dataset/{log.param.dataset}/test.csv", tokenizer, batch_size=16, shuffle=False)
     model.load_state_dict(torch.load(f"./save/{log.param.model_path}/best_model.pth"))
     model.to(device)
 

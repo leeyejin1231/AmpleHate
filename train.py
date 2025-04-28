@@ -8,7 +8,7 @@ from sklearn.metrics import accuracy_score, f1_score
 from tqdm import tqdm
 import random
 from transformers import BertTokenizer
-from utils import NERTagger, get_dataloader, iter_product
+from utils import get_dataloader, iter_product
 from model import CustomBERT, ContrastiveLossCosine
 from config import train_config
 from easydict import EasyDict as edict
@@ -37,11 +37,12 @@ def train_epoch(dataloader, model, optimizer, criterion, loss_type):
 
     for batch in tqdm(dataloader):
         input_ids = batch["input_ids"].to(device)
-        head_token_idx = batch["head_token_idx"].to(device)
+        # head_token_idx = batch["head_token_idx"].to(device)
+        attention_mask = batch["attention_mask"].to(device)
         labels = batch["labels"].to(device)
 
         optimizer.zero_grad()
-        outputs = model(input_ids, head_token_idx)
+        outputs = model(input_ids, attention_mask)
         if loss_type == "contrastive-learning":
             loss = (criterion["lambda_loss"]*criterion["cross-entropy"](outputs,labels)) + ((1-criterion["lambda_loss"])*criterion["contrastive-learning"](outputs,labels))
         else:
@@ -62,10 +63,11 @@ def evaluate(dataloader, model):
     with torch.no_grad():
         for batch in tqdm(dataloader):
             input_ids = batch["input_ids"].to(device)
-            head_token_idx = batch["head_token_idx"].to(device)
+            # head_token_idx = batch["head_token_idx"].to(device)
+            attention_mask = batch["attention_mask"].to(device)
             labels = batch["labels"].to(device)
 
-            outputs = model(input_ids, head_token_idx)
+            outputs = model(input_ids, attention_mask)
             preds = torch.argmax(outputs, dim=1)
 
             predictions.extend(preds.cpu().numpy())
@@ -81,19 +83,18 @@ def train(log):
     set_seed(log.param.SEED)
 
     tokenizer = BertTokenizer.from_pretrained(log.param.model_type)
-    ner_tagger = NERTagger()
     MODEL_SAVE_PATH = f"./save/{log.param.dataset}/best_model.pth"
     criterion = {"lambda_loss":log.param.lambda_loss, "cross-entropy": nn.CrossEntropyLoss(), "contrastive-learning":ContrastiveLossCosine()}
 
     if "ihc" in log.param.dataset:
-        train_loader = get_dataloader(f"./data/{log.param.dataset}/train.tsv", tokenizer, ner_tagger=ner_tagger, use_ner=True,  batch_size=log.param.train_batch_size)
-        valid_loader = get_dataloader(f"./data/{log.param.dataset}/valid.tsv", tokenizer, ner_tagger=None, use_ner=False, batch_size=log.param.train_batch_size)
+        train_loader = get_dataloader(f"./dataset/{log.param.dataset}/train.tsv", tokenizer, batch_size=log.param.train_batch_size)
+        valid_loader = get_dataloader(f"./dataset/{log.param.dataset}/valid.tsv", tokenizer, batch_size=log.param.train_batch_size)
     elif "SST" in log.param.dataset:
-        train_loader = get_dataloader(f"./data/{log.param.dataset}/train.tsv", tokenizer, ner_tagger=ner_tagger, use_ner=True,  batch_size=log.param.train_batch_size)
-        valid_loader = get_dataloader(f"./data/{log.param.dataset}/dev.tsv", tokenizer, ner_tagger=None, use_ner=False, batch_size=log.param.train_batch_size)
+        train_loader = get_dataloader(f"./dataset/{log.param.dataset}/train.tsv", tokenizer, batch_size=log.param.train_batch_size)
+        valid_loader = get_dataloader(f"./dataset/{log.param.dataset}/dev.tsv", tokenizer, batch_size=log.param.train_batch_size)
     else:
-        train_loader = get_dataloader(f"./data/{log.param.dataset}/train.csv", tokenizer, ner_tagger=ner_tagger, use_ner=True,  batch_size=log.param.train_batch_size)
-        valid_loader = get_dataloader(f"./data/{log.param.dataset}/valid.csv", tokenizer, ner_tagger=None, use_ner=False, batch_size=log.param.train_batch_size)
+        train_loader = get_dataloader(f"./dataset/{log.param.dataset}/train.csv", tokenizer, batch_size=log.param.train_batch_size)
+        valid_loader = get_dataloader(f"./dataset/{log.param.dataset}/valid.csv", tokenizer, batch_size=log.param.train_batch_size)
 
     model = CustomBERT(log.param.model_type, hidden_dim=log.param.hidden_size, e=log.param.e).to(device)
     optimizer = optim.AdamW(model.parameters(), lr=log.param.learning_rate)

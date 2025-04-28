@@ -1,0 +1,55 @@
+### job start
+###
+### START DATE=Mon Mar 31 17:19:48 KST 2025
+### HOSTNAME=node39
+### CUDA_VISIBLE_DEVICES=0
+Some weights of the model checkpoint at dbmdz/bert-large-cased-finetuned-conll03-english were not used when initializing BertForTokenClassification: ['bert.pooler.dense.bias', 'bert.pooler.dense.weight']
+- This IS expected if you are initializing BertForTokenClassification from the checkpoint of a model trained on another task or with another architecture (e.g. initializing a BertForSequenceClassification model from a BertForPreTraining model).
+- This IS NOT expected if you are initializing BertForTokenClassification from the checkpoint of a model that you expect to be exactly identical (initializing a BertForSequenceClassification model from a BertForSequenceClassification model).
+Device set to use cuda
+Some weights of the model checkpoint at FacebookAI/xlm-roberta-large were not used when initializing XLMRobertaForMaskedLM: ['roberta.pooler.dense.bias', 'roberta.pooler.dense.weight']
+- This IS expected if you are initializing XLMRobertaForMaskedLM from the checkpoint of a model trained on another task or with another architecture (e.g. initializing a BertForSequenceClassification model from a BertForPreTraining model).
+- This IS NOT expected if you are initializing XLMRobertaForMaskedLM from the checkpoint of a model that you expect to be exactly identical (initializing a BertForSequenceClassification model from a BertForSequenceClassification model).
+---Start dataload---
+---End dataload---
+---Start dataload---
+---End dataload---
+epoch 1
+---Start train!---
+  0%|          | 0/934 [00:00<?, ?it/s]You seem to be using the pipelines sequentially on GPU. In order to maximize efficiency please use a dataset
+We strongly recommend passing in an `attention_mask` since your input_ids may be padded. See https://huggingface.co/docs/transformers/troubleshooting#incorrect-output-when-padding-tokens-arent-masked.
+  0%|          | 0/934 [00:00<?, ?it/s]
+Traceback (most recent call last):
+  File "/home/ssgyejin/contents/attention/train.py", line 159, in <module>
+    train(log)
+  File "/home/ssgyejin/contents/attention/train.py", line 121, in train
+    train_loss = train_epoch(train_loader, model, optimizer, criterion, log.param.loss)
+  File "/home/ssgyejin/contents/attention/train.py", line 46, in train_epoch
+    outputs = model(input_ids, head_token_idx)
+  File "/home/ssgyejin/contents/env/attention/lib64/python3.9/site-packages/torch/nn/modules/module.py", line 1739, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+  File "/home/ssgyejin/contents/env/attention/lib64/python3.9/site-packages/torch/nn/modules/module.py", line 1750, in _call_impl
+    return forward_call(*args, **kwargs)
+  File "/home/ssgyejin/contents/attention/model/model.py", line 56, in forward
+    outputs = self.bert(input_ids)
+  File "/home/ssgyejin/contents/env/attention/lib64/python3.9/site-packages/torch/nn/modules/module.py", line 1739, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+  File "/home/ssgyejin/contents/env/attention/lib64/python3.9/site-packages/torch/nn/modules/module.py", line 1750, in _call_impl
+    return forward_call(*args, **kwargs)
+  File "/home/ssgyejin/contents/env/attention/lib64/python3.9/site-packages/transformers/models/xlm_roberta/modeling_xlm_roberta.py", line 1227, in forward
+    prediction_scores = self.lm_head(sequence_output)
+  File "/home/ssgyejin/contents/env/attention/lib64/python3.9/site-packages/torch/nn/modules/module.py", line 1739, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+  File "/home/ssgyejin/contents/env/attention/lib64/python3.9/site-packages/torch/nn/modules/module.py", line 1750, in _call_impl
+    return forward_call(*args, **kwargs)
+  File "/home/ssgyejin/contents/env/attention/lib64/python3.9/site-packages/transformers/models/xlm_roberta/modeling_xlm_roberta.py", line 1267, in forward
+    x = self.decoder(x)
+  File "/home/ssgyejin/contents/env/attention/lib64/python3.9/site-packages/torch/nn/modules/module.py", line 1739, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+  File "/home/ssgyejin/contents/env/attention/lib64/python3.9/site-packages/torch/nn/modules/module.py", line 1750, in _call_impl
+    return forward_call(*args, **kwargs)
+  File "/home/ssgyejin/contents/env/attention/lib64/python3.9/site-packages/torch/nn/modules/linear.py", line 125, in forward
+    return F.linear(input, self.weight, self.bias)
+torch.OutOfMemoryError: CUDA out of memory. Tried to allocate 7.63 GiB. GPU 0 has a total capacity of 23.55 GiB of which 7.08 GiB is free. Including non-PyTorch memory, this process has 16.46 GiB memory in use. Of the allocated memory 15.89 GiB is allocated by PyTorch, and 123.81 MiB is reserved by PyTorch but unallocated. If reserved but unallocated memory is large try setting PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True to avoid fragmentation.  See documentation for Memory Management  (https://pytorch.org/docs/stable/notes/cuda.html#environment-variables)
+###
+### END DATE=Mon Mar 31 17:31:05 KST 2025s

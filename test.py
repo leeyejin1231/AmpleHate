@@ -4,7 +4,7 @@ from sklearn.metrics import accuracy_score, f1_score
 from tqdm import tqdm
 import pandas as pd
 import random
-from transformers import BertTokenizer, BertModel
+from transformers import AutoTokenizer
 from utils import get_dataloader, iter_product
 from model import CustomBERT
 from config import test_config
@@ -53,14 +53,14 @@ def test_model(dataloader, model):
 def test(log):
     set_seed(log.param.SEED)
 
-    tokenizer = BertTokenizer.from_pretrained(log.param.model_type)
+    tokenizer = AutoTokenizer.from_pretrained(log.param.model_type)
     model = CustomBERT(log.param.model_type, hidden_dim=log.param.hidden_size, e=log.param.e).to(device)
 
     if "ihc" in log.param.dataset or "SST" in log.param.dataset:
         test_loader = get_dataloader(f"./data/{log.param.dataset}/test.tsv", tokenizer, ner_tagger=None, use_ner=False, batch_size=16, shuffle=False)
     else:
         test_loader = get_dataloader(f"./data/{log.param.dataset}/test.csv", tokenizer, ner_tagger=None, use_ner=False, batch_size=16, shuffle=False)
-    model.load_state_dict(torch.load(f"./save/{log.param.model_path}/best_model.pth"))
+    model.load_state_dict(torch.load(f"./save/{log.param.model_path}/best_model_{log.param.e}.pth"), strict=False)
     model.to(device)
 
     test_accuracy, test_f1, predictions, _ = test_model(test_loader, model)

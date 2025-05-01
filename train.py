@@ -7,7 +7,7 @@ import torch.optim as optim
 from sklearn.metrics import accuracy_score, f1_score
 from tqdm import tqdm
 import random
-from transformers import BertTokenizer
+from transformers import AutoTokenizer
 from utils import NERTagger, get_dataloader, iter_product
 from model import CustomBERT, ContrastiveLossCosine
 from config import train_config
@@ -56,7 +56,7 @@ def train_epoch(dataloader, model, optimizer, criterion, loss_type):
 
 def evaluate(dataloader, model):
     print("---Start Valid!---")
-    model.eval()
+    # model.eval()
     predictions, true_labels = [], []
 
     with torch.no_grad():
@@ -70,7 +70,8 @@ def evaluate(dataloader, model):
 
             predictions.extend(preds.cpu().numpy())
             true_labels.extend(labels.cpu().numpy())
-
+    
+    print(outputs)
     accuracy = accuracy_score(true_labels, predictions)
     f1 = f1_score(true_labels, predictions, average="weighted")
     
@@ -80,9 +81,9 @@ def evaluate(dataloader, model):
 def train(log):
     set_seed(log.param.SEED)
 
-    tokenizer = BertTokenizer.from_pretrained(log.param.model_type)
+    tokenizer = AutoTokenizer.from_pretrained(log.param.model_type)
     ner_tagger = NERTagger()
-    MODEL_SAVE_PATH = f"./save/{log.param.dataset}/best_model.pth"
+    MODEL_SAVE_PATH = f"./save/{log.param.dataset}/best_model_{log.param.e}.pth"
     criterion = {"lambda_loss":log.param.lambda_loss, "cross-entropy": nn.CrossEntropyLoss(), "contrastive-learning":ContrastiveLossCosine()}
 
     if "ihc" in log.param.dataset:
@@ -91,11 +92,15 @@ def train(log):
     elif "SST" in log.param.dataset:
         train_loader = get_dataloader(f"./data/{log.param.dataset}/train.tsv", tokenizer, ner_tagger=ner_tagger, use_ner=True,  batch_size=log.param.train_batch_size)
         valid_loader = get_dataloader(f"./data/{log.param.dataset}/dev.tsv", tokenizer, ner_tagger=None, use_ner=False, batch_size=log.param.train_batch_size)
+    elif "sbic" in log.param.dataset or "dyna" in log.param.dataset:
+        train_loader = get_dataloader(f"./data/{log.param.dataset}/train.csv", tokenizer, ner_tagger=ner_tagger, use_ner=True,  batch_size=log.param.train_batch_size)
+        valid_loader = get_dataloader(f"./data/{log.param.dataset}/dev.csv", tokenizer, ner_tagger=None, use_ner=False, batch_size=log.param.train_batch_size)
     else:
         train_loader = get_dataloader(f"./data/{log.param.dataset}/train.csv", tokenizer, ner_tagger=ner_tagger, use_ner=True,  batch_size=log.param.train_batch_size)
         valid_loader = get_dataloader(f"./data/{log.param.dataset}/valid.csv", tokenizer, ner_tagger=None, use_ner=False, batch_size=log.param.train_batch_size)
-
-    model = CustomBERT(log.param.model_type, hidden_dim=log.param.hidden_size, e=log.param.e).to(device)
+    
+    model = CustomBERT(log.param.model_type, hidden_dim=log.param.hidden_size, e=log.param.e)
+    model.to(device)    
     optimizer = optim.AdamW(model.parameters(), lr=log.param.learning_rate)
 
     best_f1_score = 0.0

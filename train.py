@@ -7,7 +7,7 @@ import torch.optim as optim
 from sklearn.metrics import accuracy_score, f1_score
 from tqdm import tqdm
 import random
-from transformers import BertTokenizer
+from transformers import BertTokenizer, AutoTokenizer
 from utils import NERTagger, get_dataloader, iter_product
 from model import CustomBERT, ContrastiveLossCosine
 from config import train_config
@@ -80,7 +80,7 @@ def evaluate(dataloader, model):
 def train(log):
     set_seed(log.param.SEED)
 
-    tokenizer = BertTokenizer.from_pretrained(log.param.model_type)
+    tokenizer = AutoTokenizer.from_pretrained(log.param.model_type)
     ner_tagger = NERTagger()
     MODEL_SAVE_PATH = f"./save/{log.param.dataset}/best_model.pth"
     criterion = {"lambda_loss":log.param.lambda_loss, "cross-entropy": nn.CrossEntropyLoss(), "contrastive-learning":ContrastiveLossCosine()}

@@ -1,6 +1,6 @@
 import torch
 import torch.nn as nn
-from transformers import BertModel
+from transformers import BertModel, AutoModel
 
 class HeadAttention(nn.Module):
     def __init__(self, hidden_dim, head_dim):
@@ -42,7 +42,8 @@ class CustomBERT(nn.Module):
     def __init__(self, bert_model_name, hidden_dim, e=1e-3):
         super(CustomBERT, self).__init__()
 
-        self.bert = BertModel.from_pretrained(bert_model_name)
+        # self.bert = AutoModel.from_pretrained(bert_model_name)
+        self.bert = AutoModel.from_pretrained(bert_model_name)
         self.hidden_dim = hidden_dim
         self.e = e
 
@@ -55,9 +56,12 @@ class CustomBERT(nn.Module):
 
     def forward(self, input_ids, head_token_idx):
         outputs = self.bert(input_ids, output_hidden_states=True)
+
+        cls_embedding = outputs.last_hidden_state[:, 0, :]
+
         # Get the hidden states from the middle layer (6th layer for bert-base which has 12 layers)
-        middle_layer_output = outputs.hidden_states[6]
-        cls_embedding = middle_layer_output[:, 0, :]  # [CLS] 토큰 출력
+        # middle_layer_output = outputs.hidden_states[6]
+        # cls_embedding = middle_layer_output[:, 0, :]  # [CLS] 토큰 출력
  
         # Head-Token 위치 추출
         batch_size = input_ids.shape[0]

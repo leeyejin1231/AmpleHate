@@ -1,5 +1,5 @@
 
-dataset = ["hateval"]
+dataset = ["ethos"]
 
 tuning_param  = ["learning_rate","train_batch_size","eval_batch_size","nepoch","SEED","dataset"] ## list of possible paramters to be tuned
 
@@ -11,7 +11,7 @@ learning_rate = [2e-5]
 # loss = "contrastive-learning"
 loss = "cross-entropy"
 lambda_loss = 0.5
-e = 1e-3
+e = 1
 
 model_type = "bert-base-uncased"
 SEED = [0]

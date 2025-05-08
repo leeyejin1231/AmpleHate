@@ -2,6 +2,8 @@ import pandas as pd
 import torch
 from utils import NERProcessor
 from torch.utils.data import Dataset, DataLoader
+import random
+import numpy as np
 
 class CustomNERDataset(Dataset):
     def __init__(self, csv_file, tokenizer, ner_tagger=None, use_ner=True):
@@ -43,16 +45,32 @@ class CustomNERDataset(Dataset):
             text, label = row["post"], row["label"]
 
         # 토큰화 및 Head-Token 인덱스 추출
-        token_ids, head_token_idx = self.processor.tokenize_and_encode(text)
+        token_ids, head_token_idx, attention_mask = self.processor.tokenize_and_encode(text)
         token_ids = torch.tensor(token_ids, dtype=torch.long)
         head_token_idx = torch.tensor(head_token_idx, dtype=torch.long)
-        label = torch.tensor(label, dtype=torch.long)
+        label = torch.tensor(label, dtype=torch.long)   
+        attention_mask = torch.tensor(attention_mask, dtype=torch.long)
 
         return {
             "input_ids": token_ids,
             "head_token_idx": head_token_idx,
-            "label": label
+            "label": label,
+            "attention_mask": attention_mask
         }
+
+def set_seed(seed=42):
+    """
+    랜덤 시드 고정
+    """
+    random.seed(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed_all(seed)  # GPU 사용 시에도 시드 고정
+
+    # CUDNN 설정 (연산 속도 vs 재현성 선택)
+    torch.backends.cudnn.deterministic = True
+    torch.backends.cudnn.benchmark = False
+
 
 def collate_fn(batch):
     """
@@ -61,17 +79,22 @@ def collate_fn(batch):
     input_ids = torch.stack([item["input_ids"] for item in batch])
     head_token_idx = torch.stack([item["head_token_idx"] for item in batch])
     labels = torch.stack([item["label"] for item in batch])
+    attention_mask = torch.stack([item["attention_mask"] for item in batch])
 
     return {
         "input_ids": input_ids,
         "head_token_idx": head_token_idx,
-        "labels": labels
+        "labels": labels,
+        "attention_mask": attention_mask
     }
 
 # 데이터 로더 설정
-def get_dataloader(csv_file, tokenizer, ner_tagger, use_ner, batch_size=16, shuffle=True):
+def get_dataloader(csv_file, tokenizer, ner_tagger, use_ner, batch_size=16, shuffle=True, seed=42):
+    set_seed(seed)
     print("---Start dataload---")
+    g = torch.Generator()   
+    g.manual_seed(seed)
     dataset = CustomNERDataset(csv_file, tokenizer, ner_tagger, use_ner)
-    dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=shuffle, collate_fn=collate_fn)
+    dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=shuffle, collate_fn=collate_fn, generator=g)
     print("---End dataload---")
     return dataloader

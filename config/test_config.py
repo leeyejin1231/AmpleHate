@@ -1,4 +1,3 @@
-# dataset = ["ihc", "sbic", "dynahate", "hateval", "toxigen", "white", "ethos"]
 dataset = ["ethos"]
 model_path = ["ethos"]
 

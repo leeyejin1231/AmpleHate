@@ -17,7 +17,7 @@ class HeadAttention(nn.Module):
     def forward(self, cls_embedding, head_token_embedding):
         Q_h = self.W_q(cls_embedding)   # [CLS]의 Query
         K_h = self.W_k(head_token_embedding)  # 특정 토큰의 Key
-        V_h = self.W_v(head_token_embedding)  # 특정 토큰의 Value
+        V_h = self.W_v(cls_embedding)  # [CLS]의 Value
 
         attention_scores = torch.matmul(Q_h, K_h.T) / (self.head_dim ** 0.5)
         attention_scores = attention_scores.float()
@@ -54,8 +54,8 @@ class CustomBERT(nn.Module):
         # 최종 분류기
         self.classifier = nn.Linear(hidden_dim, 2)  # non-hate(0) / hate(1) 이진 분류
 
-    def forward(self, input_ids, head_token_idx):
-        outputs = self.bert(input_ids, output_hidden_states=True)
+    def forward(self, input_ids, head_token_idx, attention_mask):
+        outputs = self.bert(input_ids, attention_mask=attention_mask, output_hidden_states=True)
 
         cls_embedding = outputs.last_hidden_state[:, 0, :]
 

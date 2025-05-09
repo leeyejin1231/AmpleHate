@@ -96,7 +96,7 @@ def train(log):
     tokenizer = AutoTokenizer.from_pretrained(log.param.model_type)
     ner_tagger = NERTagger()
     os.makedirs(f"./save/{log.param.dataset}/seed_{log.param.SEED}/lambda_{log.param.e}", exist_ok=True)
-    MODEL_SAVE_PATH = f"./save/{log.param.dataset}/{log.param.e}/best_model.pth"
+    MODEL_SAVE_PATH = f"./save/{log.param.dataset}/seed_{log.param.SEED}/lambda_{log.param.e}/best_model.pth"
     criterion = {"lambda_loss":log.param.lambda_loss, "cross-entropy": nn.CrossEntropyLoss(), "contrastive-learning":ContrastiveLossCosine()}
 
     if "ihc" in log.param.dataset:
@@ -139,7 +139,7 @@ def train(log):
             df["valid_threshold"] = best_t
             print(f"=== Model saved at epoch {epoch+1} with F1-score: {f1:.4f} ===")
     
-    with open(f"./save/{log.param.dataset}/{log.param.e}/log.json", 'w') as file:
+    with open(f"./save/{log.param.dataset}/seed_{log.param.SEED}/lambda_{log.param.e}/log.json", 'w') as file:
         json.dump(df, file)
 
 if __name__ == '__main__':

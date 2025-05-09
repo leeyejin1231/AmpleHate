@@ -17,7 +17,7 @@ class HeadAttention(nn.Module):
     def forward(self, cls_embedding, head_token_embedding):
         Q_h = self.W_q(cls_embedding)   # [CLS]의 Query
         K_h = self.W_k(head_token_embedding)  # 특정 토큰의 Key
-        V_h = self.W_v(head_token_embedding)  # 특정 토큰의 Value
+        V_h = self.W_v(cls_embedding)  # [CLS]의 Value
 
         attention_scores = torch.matmul(Q_h, K_h.T) / (self.head_dim ** 0.5)
         attention_scores = attention_scores.float()
@@ -54,8 +54,8 @@ class CustomBERT(nn.Module):
         # 최종 분류기
         self.classifier = nn.Linear(hidden_dim, 2)  # non-hate(0) / hate(1) 이진 분류
 
-    def forward(self, input_ids, head_token_idx):
-        outputs = self.bert(input_ids, output_hidden_states=True)
+    def forward(self, input_ids, head_token_idx, attention_mask):
+        outputs = self.bert(input_ids, attention_mask=attention_mask, output_hidden_states=True)
 
         cls_embedding = outputs.last_hidden_state[:, 0, :]
 
@@ -64,17 +64,17 @@ class CustomBERT(nn.Module):
         # cls_embedding = middle_layer_output[:, 0, :]  # [CLS] 토큰 출력
  
         # Head-Token 위치 추출
-        batch_size = input_ids.shape[0]
-        head_token_embeddings = outputs.last_hidden_state[torch.arange(batch_size), head_token_idx, :]
+        # batch_size = input_ids.shape[0]
+        # head_token_embeddings = outputs.last_hidden_state[torch.arange(batch_size), head_token_idx, :]
 
-        # Head-Token이 없을 경우 기본적으로 Self-Attention 사용
-        # if torch.all(head_token_idx == 0):  
-        # final_embedding = cls_embedding  # 기본적인 [CLS] Embedding 사용
-        # else:
-        head_attention_output = self.head_attention(cls_embedding, head_token_embeddings)
-        final_embedding = cls_embedding + head_attention_output * self.e  # Head-Attention 결합
+        # # Head-Token이 없을 경우 기본적으로 Self-Attention 사용
+        # # if torch.all(head_token_idx == 0):  
+        # # final_embedding = cls_embedding  # 기본적인 [CLS] Embedding 사용
+        # # else:
+        # head_attention_output = self.head_attention(cls_embedding, head_token_embeddings)
+        # final_embedding = cls_embedding + head_attention_output * self.e  # Head-Attention 결합
 
-        logits = self.classifier(final_embedding)
+        logits = self.classifier(cls_embedding)
         return logits
     
 

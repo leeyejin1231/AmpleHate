@@ -27,7 +27,7 @@ def set_seed(seed=42):
     torch.backends.cudnn.benchmark = False
 
 
-def test_model(dataloader, model):
+def test_model(dataloader, model, threshold):
     print("---Start Test!---")
     model.eval()
     predictions, true_labels = [], []
@@ -36,10 +36,12 @@ def test_model(dataloader, model):
         for batch in tqdm(dataloader):
             input_ids = batch["input_ids"].to(device)
             head_token_idx = batch["head_token_idx"].to(device)
+            attention_mask = batch["attention_mask"].to(device)
             labels = batch["labels"].to(device)
 
-            outputs = model(input_ids, head_token_idx, )
-            preds = torch.argmax(outputs, dim=1)
+            outputs = model(input_ids, head_token_idx, attention_mask)
+            # preds = torch.argmax(outputs, dim=1)
+            preds = (torch.softmax(outputs, dim=1)[:, 1] >= threshold)
 
             predictions.extend(preds.cpu().numpy())
             true_labels.extend(labels.cpu().numpy())
@@ -60,10 +62,15 @@ def test(log):
         test_loader = get_dataloader(f"./data/{log.param.dataset}/test.tsv", tokenizer, ner_tagger=None, use_ner=False, batch_size=16, shuffle=False)
     else:
         test_loader = get_dataloader(f"./data/{log.param.dataset}/test.csv", tokenizer, ner_tagger=None, use_ner=False, batch_size=16, shuffle=False)
-    model.load_state_dict(torch.load(f"./save/{log.param.model_path}/best_model.pth"))
+
+    ckpt = torch.load(f"./save/{log.param.model_path}/best_model.pth")
+    threshold = ckpt["threshold"]
+        
+    # model.load_state_dict(torch.load(f"./save/{log.param.model_path}/best_model.pth"))
+    model.load_state_dict(ckpt["model"])
     model.to(device)
 
-    test_accuracy, test_f1, predictions, _ = test_model(test_loader, model)
+    test_accuracy, test_f1, predictions, _ = test_model(test_loader, model, threshold)
 
     df = pd.DataFrame()
     df["label"] = predictions

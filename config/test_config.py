@@ -1,5 +1,5 @@
-dataset = ["ethos"]
-model_path = ["ethos"]
+dataset = ["dynahate"]
+model_path = ["dynahate"]
 
 tuning_param  = ["learning_rate","train_batch_size","eval_batch_size","nepoch","SEED","dataset","model_path"] ## list of possible paramters to be tuned
 

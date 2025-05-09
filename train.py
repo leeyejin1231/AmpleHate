@@ -1,6 +1,7 @@
 import torch.optim as optim
 import torch
 import json
+import os
 import numpy as np
 import torch.nn as nn
 import torch.optim as optim
@@ -88,35 +89,14 @@ def evaluate(dataloader, model, log):
     
     return accuracy, f1, best_t
 
-# def evaluate(dataloader, model, log):
-#     print("---Start Valid!---")
-#     model.eval()
-#     predictions, true_labels = [], []
-
-#     with torch.no_grad():
-#         for batch in tqdm(dataloader):
-#             input_ids = batch["input_ids"].to(device)
-#             head_token_idx = batch["head_token_idx"].to(device)
-#             attention_mask = batch["attention_mask"].to(device)
-#             labels = batch["labels"].to(device)
-
-#             outputs = model(input_ids, head_token_idx, attention_mask)
-#             preds = torch.argmax(outputs, dim=1)
-
-#             predictions.extend(preds.cpu().numpy())
-#             true_labels.extend(labels.cpu().numpy())
-
-#     accuracy = accuracy_score(true_labels, predictions)
-#     f1 = f1_score(true_labels, predictions, average="weighted")
-    
-#     return accuracy, f1
 
 def train(log):
     set_seed(log.param.SEED)
 
     tokenizer = AutoTokenizer.from_pretrained(log.param.model_type)
     ner_tagger = NERTagger()
-    MODEL_SAVE_PATH = f"./save/{log.param.dataset}/best_model.pth"
+    os.makedirs(f"./save/{log.param.dataset}/seed_{log.param.SEED}/lambda_{log.param.e}", exist_ok=True)
+    MODEL_SAVE_PATH = f"./save/{log.param.dataset}/{log.param.e}/best_model.pth"
     criterion = {"lambda_loss":log.param.lambda_loss, "cross-entropy": nn.CrossEntropyLoss(), "contrastive-learning":ContrastiveLossCosine()}
 
     if "ihc" in log.param.dataset:
@@ -159,7 +139,7 @@ def train(log):
             df["valid_threshold"] = best_t
             print(f"=== Model saved at epoch {epoch+1} with F1-score: {f1:.4f} ===")
     
-    with open(f'save/{log.param.dataset}/log.json', 'w') as file:
+    with open(f"./save/{log.param.dataset}/{log.param.e}/log.json", 'w') as file:
         json.dump(df, file)
 
 if __name__ == '__main__':

@@ -1,5 +1,5 @@
-dataset = ["hateval"]
-model_path = ["hateval/seed_0/lambda_0.5"]
+dataset = ["white"]
+model_path = ["white/seed_0/lambda_1"]
 
 tuning_param  = ["learning_rate","train_batch_size","eval_batch_size","nepoch","SEED","dataset","model_path"] ## list of possible paramters to be tuned
 

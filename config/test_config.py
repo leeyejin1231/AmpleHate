@@ -1,5 +1,5 @@
-dataset = ["dynahate"]
-model_path = ["dynahate"]
+dataset = ["hateval"]
+model_path = ["hateval/seed_0_gpt/lambda_0.75"]
 
 tuning_param  = ["learning_rate","train_batch_size","eval_batch_size","nepoch","SEED","dataset","model_path"] ## list of possible paramters to be tuned
 

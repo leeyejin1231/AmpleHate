@@ -105,6 +105,9 @@ def train(log):
     elif "SST" in log.param.dataset:
         train_loader = get_dataloader(f"./data/{log.param.dataset}/train.tsv", tokenizer, ner_tagger=ner_tagger, use_ner=True,  batch_size=log.param.train_batch_size, seed=log.param.SEED)
         valid_loader = get_dataloader(f"./data/{log.param.dataset}/dev.tsv", tokenizer, ner_tagger=None, use_ner=False, batch_size=log.param.train_batch_size, seed=log.param.SEED)
+    elif "dynahate" in log.param.dataset or "sbic" in log.param.dataset:
+        train_loader = get_dataloader(f"./data/{log.param.dataset}/train.csv", tokenizer, ner_tagger=ner_tagger, use_ner=True,  batch_size=log.param.train_batch_size, seed=log.param.SEED)
+        valid_loader = get_dataloader(f"./data/{log.param.dataset}/dev.csv", tokenizer, ner_tagger=None, use_ner=False, batch_size=log.param.train_batch_size, seed=log.param.SEED)
     else:
         train_loader = get_dataloader(f"./data/{log.param.dataset}/train.csv", tokenizer, ner_tagger=ner_tagger, use_ner=True,  batch_size=log.param.train_batch_size, seed=log.param.SEED)
         valid_loader = get_dataloader(f"./data/{log.param.dataset}/valid.csv", tokenizer, ner_tagger=None, use_ner=False, batch_size=log.param.train_batch_size, seed=log.param.SEED)

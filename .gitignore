@@ -7,6 +7,9 @@
 # refactoring this file!
 
 ## PyTorch
+*.out
+*.ipynb
+*.sh
 data/
 dataset/
 save/

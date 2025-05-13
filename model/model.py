@@ -42,7 +42,6 @@ class CustomBERT(nn.Module):
     def __init__(self, bert_model_name, hidden_dim, e=1e-3):
         super(CustomBERT, self).__init__()
 
-        # self.bert = AutoModel.from_pretrained(bert_model_name)
         self.bert = AutoModel.from_pretrained(bert_model_name)
         self.hidden_dim = hidden_dim
         self.e = e
@@ -59,23 +58,22 @@ class CustomBERT(nn.Module):
 
         cls_embedding = outputs.last_hidden_state[:, 0, :]
 
-        # Get the hidden states from the middle layer (6th layer for bert-base which has 12 layers)
-        # middle_layer_output = outputs.hidden_states[6]
-        # cls_embedding = middle_layer_output[:, 0, :]  # [CLS] 토큰 출력
- 
-        # Head-Token 위치 추출
-        batch_size = input_ids.shape[0]
-        head_token_embeddings = outputs.last_hidden_state[torch.arange(batch_size), head_token_idx, :]
+        # Head-Token 위치 추출 (여러 개)
+        hidden_dim = outputs.last_hidden_state.shape[-1]
+        expanded_idx = head_token_idx.unsqueeze(-1).expand(-1, -1, hidden_dim)  # [batch, max_num_head, hidden_dim]
+        head_token_embeddings = torch.gather(outputs.last_hidden_state, 1, expanded_idx)  # [batch, max_num_head, hidden_dim]
 
-        # Head-Token이 없을 경우 기본적으로 Self-Attention 사용
-        # if torch.all(head_token_idx == 0):  
-        # final_embedding = cls_embedding  # 기본적인 [CLS] Embedding 사용
-        # else:
-        head_attention_output = self.head_attention(cls_embedding, head_token_embeddings)
-        final_embedding = cls_embedding + head_attention_output * self.e  # Head-Attention 결합
+        outputs_list = []
+        for i in range(head_token_embeddings.shape[1]):
+            output = self.head_attention(cls_embedding, head_token_embeddings[:, i, :])
+            outputs_list.append(output)
+        
+        head_attention_output = sum(outputs_list)
+        final_embedding = cls_embedding + head_attention_output * self.e
 
         logits = self.classifier(final_embedding)
         return logits
+    
     
 
 

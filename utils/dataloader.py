@@ -4,6 +4,7 @@ from utils import NERProcessor
 from torch.utils.data import Dataset, DataLoader
 import random
 import numpy as np
+from torch.nn.utils.rnn import pad_sequence
 
 class CustomNERDataset(Dataset):
     def __init__(self, csv_file, tokenizer, ner_tagger=None, use_ner=True):
@@ -77,7 +78,9 @@ def collate_fn(batch):
     DataLoader에서 batch 단위로 데이터를 처리하는 함수
     """
     input_ids = torch.stack([item["input_ids"] for item in batch])
-    head_token_idx = torch.stack([item["head_token_idx"] for item in batch])
+    # head_token_idx: [batch, variable_len] -> pad to [batch, max_num_head]
+    head_token_idxs = [item["head_token_idx"] for item in batch]
+    head_token_idx = pad_sequence(head_token_idxs, batch_first=True, padding_value=0)
     labels = torch.stack([item["label"] for item in batch])
     attention_mask = torch.stack([item["attention_mask"] for item in batch])
 

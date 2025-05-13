@@ -59,20 +59,28 @@ class CustomBERT(nn.Module):
 
         cls_embedding = outputs.last_hidden_state[:, 0, :]
 
-        # Get the hidden states from the middle layer (6th layer for bert-base which has 12 layers)
-        # middle_layer_output = outputs.hidden_states[6]
-        # cls_embedding = middle_layer_output[:, 0, :]  # [CLS] 토큰 출력
- 
-        # Head-Token 위치 추출
-        batch_size = input_ids.shape[0]
-        head_token_embeddings = outputs.last_hidden_state[torch.arange(batch_size), head_token_idx, :]
+        # Head-Token 위치 추출 (여러 개)
+        # batch_size = input_ids.shape[0]
+        hidden_dim = outputs.last_hidden_state.shape[-1]
+        # head_token_idx: [batch, max_num_head]
+        expanded_idx = head_token_idx.unsqueeze(-1).expand(-1, -1, hidden_dim)  # [batch, max_num_head, hidden_dim]
+        head_token_embeddings = torch.gather(outputs.last_hidden_state, 1, expanded_idx)  # [batch, max_num_head, hidden_dim]
+        # 패딩(0) 인덱스는 무시하고 평균
+        # mask = (head_token_idx != 0).unsqueeze(-1)  # [batch, max_num_head, 1]
+        # # masked_embeddings = head_token_embeddings * mask  # 패딩 위치는 0
+        # num_valid = mask.sum(dim=1)  # [batch, 1]
+        # num_valid = num_valid.clamp(min=1)  # 0으로 나누는 것 방지
+        # mean_head_token_embeddings = masked_embeddings.sum(dim=1) / num_valid  # [batch, hidden_dim]
 
-        # Head-Token이 없을 경우 기본적으로 Self-Attention 사용
-        # if torch.all(head_token_idx == 0):  
-        # final_embedding = cls_embedding  # 기본적인 [CLS] Embedding 사용
-        # else:
-        head_attention_output = self.head_attention(cls_embedding, head_token_embeddings)
-        final_embedding = cls_embedding + head_attention_output * self.e  # Head-Attention 결합
+        # head_token_embeddings: [batch, max_num_head, hidden_dim]
+        outputs_list = []
+        for i in range(head_token_embeddings.shape[1]):
+            # head_token_embeddings[:, i, :] : [batch, hidden_dim]
+            output = self.head_attention(cls_embedding, head_token_embeddings[:, i, :])
+            outputs_list.append(output)
+        # sum all outputs: [batch, hidden_dim]
+        head_attention_output = sum(outputs_list)
+        final_embedding = cls_embedding + head_attention_output * self.e
 
         logits = self.classifier(final_embedding)
         return logits

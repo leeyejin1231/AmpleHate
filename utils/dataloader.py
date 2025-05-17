@@ -76,8 +76,19 @@ def collate_fn(batch):
     """
     DataLoader에서 batch 단위로 데이터를 처리하는 함수
     """
+    # Get max length in batch
+    max_len = max(len(item["head_token_idx"]) for item in batch)
+    
+    # Pad sequences to max length
+    padded_head_token_idx = []
+    for item in batch:
+        head_idx = item["head_token_idx"]
+        padding_len = max_len - len(head_idx)
+        padded_idx = torch.cat([head_idx, torch.zeros(padding_len, dtype=torch.long)])
+        padded_head_token_idx.append(padded_idx)
+    
     input_ids = torch.stack([item["input_ids"] for item in batch])
-    head_token_idx = torch.stack([item["head_token_idx"] for item in batch])
+    head_token_idx = torch.stack(padded_head_token_idx)
     labels = torch.stack([item["label"] for item in batch])
     attention_mask = torch.stack([item["attention_mask"] for item in batch])
 

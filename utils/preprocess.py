@@ -29,37 +29,36 @@ class NERProcessor:
         self.ner_tagger = ner_tagger
         self.use_ner = use_ner
 
-    def extract_head_token(self, text):
+    def extract_head_tokens(self, text):
         """
-        NER을 적용하여 특정 개체명을 Head-Token으로 선정.
-        Head-Token이 없으면 [CLS]를 사용.
+        NER을 적용하여 특정 개체명들을 Head-Token으로 선정.
+        Head-Token이 없으면 빈 리스트 반환.
         """
         if not self.use_ner:
-            return None
-        
+            return []
         entities = self.ner_tagger.extract_named_entities(text)
-        if len(entities) > 0:
-            return entities[0]  # 첫 번째 개체명을 Head-Token으로 사용
-        return None  # 개체명이 없는 경우
+        return entities  # 여러 개체명 모두 반환
 
     def tokenize_and_encode(self, text):
         """
-        문장을 BERT Tokenizer를 이용해 토큰화하고, Head-Token의 인덱스를 반환.
+        문장을 BERT Tokenizer를 이용해 토큰화하고, Head-Token들의 인덱스 리스트를 반환.
         """
-        head_token = self.extract_head_token(text)
+        head_tokens = self.extract_head_tokens(text)
         tokens = self.tokenizer.tokenize(text)
-        # token_ids = self.tokenizer.encode(text, truncation=True, padding="max_length", max_length=512, return_attention_mask=True)
         encoding = self.tokenizer(text, truncation=True, padding="max_length", max_length=512)
         token_ids = encoding["input_ids"]
         attention_mask = encoding["attention_mask"]
 
-        # Head-Token이 존재하는 경우 인덱스를 찾음
-        if head_token:
+        # Head-Token이 존재하는 경우 인덱스 리스트를 찾음
+        head_token_idx = []
+        for ht in head_tokens:
             try:
-                head_token_idx = tokens.index(head_token) + 1  # [CLS]가 0번째이므로 +1
+                idx = tokens.index(ht) + 1  # [CLS]가 0번째이므로 +1
+                head_token_idx.append(idx)
             except ValueError:
-                head_token_idx = 0  # 찾지 못한 경우 기본값 ([CLS]) 설정
-        else:
-            head_token_idx = 0  # 개체명이 없으면 [CLS]를 Head-Token으로 설정
+                continue  # 못 찾으면 무시
+
+        if not head_token_idx:
+            head_token_idx = [0]  # 개체명이 없으면 [CLS]를 Head-Token으로 설정
 
         return token_ids, head_token_idx, attention_mask

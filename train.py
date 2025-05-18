@@ -63,7 +63,7 @@ def best_threshold(probs: np.ndarray, labels:np.ndarray, grid=np.linspace(0.05, 
             best_f1, best_t = f1, t
     return best_t
 
-def evaluate(dataloader, model, log):
+def evaluate(dataloader, model, log, best_t=None):
     print("---Start Valid!---")
     model.eval()
     predictions, true_labels = [], []
@@ -81,7 +81,10 @@ def evaluate(dataloader, model, log):
             predictions.extend(preds.cpu())
             true_labels.extend(labels.cpu().numpy())
 
-    t = best_threshold(np.array(predictions), true_labels)
+    if best_t is None:
+        t = best_threshold(np.array(predictions), true_labels)
+    else:
+        t = best_t
     y_pred = (np.array(predictions) >= t).astype(int)
     acc = accuracy_score(true_labels, y_pred)
     f1 = f1_score(true_labels, y_pred, average="macro")
@@ -102,16 +105,19 @@ def train(log):
     if "ihc" in log.param.dataset:
         train_loader = get_dataloader(f"./data/{log.param.dataset}/train.tsv", tokenizer, ner_tagger=ner_tagger, use_ner=True,  batch_size=log.param.train_batch_size, seed=log.param.SEED)
         valid_loader = get_dataloader(f"./data/{log.param.dataset}/valid.tsv", tokenizer, ner_tagger=None, use_ner=False, batch_size=log.param.train_batch_size, seed=log.param.SEED)
+        test_loader = get_dataloader(f"./data/{log.param.dataset}/test.tsv", tokenizer, ner_tagger=None, use_ner=False, batch_size=log.param.train_batch_size, seed=log.param.SEED)
     elif "SST" in log.param.dataset:
         train_loader = get_dataloader(f"./data/{log.param.dataset}/train.tsv", tokenizer, ner_tagger=ner_tagger, use_ner=True,  batch_size=log.param.train_batch_size, seed=log.param.SEED)
         valid_loader = get_dataloader(f"./data/{log.param.dataset}/dev.tsv", tokenizer, ner_tagger=None, use_ner=False, batch_size=log.param.train_batch_size, seed=log.param.SEED)
+        test_loader = get_dataloader(f"./data/{log.param.dataset}/test.tsv", tokenizer, ner_tagger=None, use_ner=False, batch_size=log.param.train_batch_size, seed=log.param.SEED)
     elif "dynahate" in log.param.dataset or "sbic" in log.param.dataset:
         train_loader = get_dataloader(f"./data/{log.param.dataset}/train.csv", tokenizer, ner_tagger=ner_tagger, use_ner=True,  batch_size=log.param.train_batch_size, seed=log.param.SEED)
         valid_loader = get_dataloader(f"./data/{log.param.dataset}/dev.csv", tokenizer, ner_tagger=None, use_ner=False, batch_size=log.param.train_batch_size, seed=log.param.SEED)
+        test_loader = get_dataloader(f"./data/{log.param.dataset}/test.csv", tokenizer, ner_tagger=None, use_ner=False, batch_size=log.param.train_batch_size, seed=log.param.SEED)
     else:
         train_loader = get_dataloader(f"./data/{log.param.dataset}/train.csv", tokenizer, ner_tagger=ner_tagger, use_ner=True,  batch_size=log.param.train_batch_size, seed=log.param.SEED)
         valid_loader = get_dataloader(f"./data/{log.param.dataset}/valid.csv", tokenizer, ner_tagger=None, use_ner=False, batch_size=log.param.train_batch_size, seed=log.param.SEED)
-
+        test_loader = get_dataloader(f"./data/{log.param.dataset}/test.csv", tokenizer, ner_tagger=None, use_ner=False, batch_size=log.param.train_batch_size, seed=log.param.SEED)
     model = CustomBERT(log.param.model_type, hidden_dim=log.param.hidden_size, e=log.param.e).to(device)
     optimizer = optim.AdamW(model.parameters(), lr=log.param.learning_rate)
 
@@ -127,7 +133,8 @@ def train(log):
         print(f"epoch {epoch+1}")
         train_loss = train_epoch(train_loader, model, optimizer, criterion, log.param.loss, log)
         acc, f1, best_t = evaluate(valid_loader, model, log)
-        print(f"Epoch {epoch+1}, Loss: {train_loss:.4f}, Accuracy: {acc:.4f}, F1-Score: {f1:.4f}")
+        test_acc, test_f1, test_best_t = evaluate(test_loader, model, log, best_t)
+        print(f"Epoch {epoch+1}, Loss: {train_loss:.4f}, Accuracy: {acc:.4f}, F1-Score: {f1:.4f}, Test Accuracy: {test_acc:.4f}, Test F1-Score: {test_f1:.4f}")
         
         df["train"]["loss"].append(train_loss)
         df["train"]["f1"].append(f1)
@@ -140,6 +147,8 @@ def train(log):
             df["valid_f1_score"] = f1
             df["valid_loss"] = train_loss
             df["valid_threshold"] = best_t
+            df["test_acc"] = test_acc
+            df["test_f1_score"] = test_f1
             print(f"=== Model saved at epoch {epoch+1} with F1-score: {f1:.4f} ===")
     
     with open(f"./save/{log.param.dataset}/seed_{log.param.SEED}/lambda_{log.param.e}/log.json", 'w') as file:

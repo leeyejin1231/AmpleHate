@@ -1,5 +1,5 @@
-dataset = ["dynahate_gpt"]
-model_path = ["dynahate/seed_0/lambda_1"]
+dataset = ["ethos"]
+model_path = ["all_df/seed_314/lambda_1"]
 
 tuning_param  = ["learning_rate","train_batch_size","eval_batch_size","nepoch","SEED","dataset","model_path"] ## list of possible paramters to be tuned
 

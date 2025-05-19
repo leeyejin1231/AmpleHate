@@ -64,12 +64,12 @@ def best_threshold(probs: np.ndarray, labels:np.ndarray, grid=np.linspace(0.05, 
     return best_t
 
 def evaluate(dataloader, model, log):
-    print("---Start Valid!---")
+    # print("---Start Valid!---")
     model.eval()
     predictions, true_labels = [], []
 
     with torch.no_grad():
-        for batch in tqdm(dataloader):
+        for batch in dataloader:
             input_ids = batch["input_ids"].to(device)
             head_token_idx = batch["head_token_idx"].to(device)
             attention_mask = batch["attention_mask"].to(device)
@@ -89,6 +89,86 @@ def evaluate(dataloader, model, log):
     
     return accuracy, f1, best_t
 
+def train_steps(dataloader, valid_loader, model, optimizer, criterion, loss_type, log, df, MODEL_SAVE_PATH):
+    print("---Start train by step!---")
+    model.train()
+    total_loss = 0
+    step = 0
+    best_f1_score = 0.0
+    # eval_steps = getattr(log.param, 'eval_steps', 100)
+    eval_steps = 50
+    step_losses = []
+    step_f1s = []
+    step_thresholds = []
+    stop_step = 0
+    valid_f1_score = 0.0
+    valid_loss = 0.0
+    valid_threshold = 0.0
+
+    for epoch in range(log.param.nepoch):
+        print(f"epoch {epoch+1}")
+        for batch in dataloader:
+            step += 1
+            input_ids = batch["input_ids"].to(device)
+            head_token_idx = batch["head_token_idx"].to(device)
+            attention_mask = batch["attention_mask"].to(device)
+            labels = batch["labels"].to(device)
+
+            optimizer.zero_grad()
+            outputs = model(input_ids, head_token_idx, attention_mask)
+            if loss_type == "contrastive-learning":
+                loss = (criterion["lambda_loss"]*criterion["cross-entropy"](outputs,labels)) + ((1-criterion["lambda_loss"])*criterion["contrastive-learning"](outputs,labels))
+            else:
+                loss = criterion["cross-entropy"](outputs, labels)
+
+            loss.backward()
+            optimizer.step()
+            total_loss += loss.item()
+
+            # step별 평가 및 저장
+            if step % eval_steps == 0:
+                avg_loss = total_loss / eval_steps
+                acc, f1, best_t = evaluate(valid_loader, model, log)
+                print(f"Step {step}, Loss: {avg_loss:.4f}, Accuracy: {acc:.4f}, F1-Score: {f1:.4f}")
+                step_losses.append(avg_loss)
+                step_f1s.append(f1)
+                step_thresholds.append(best_t)
+                total_loss = 0
+
+                if f1 > best_f1_score:
+                    best_f1_score = f1
+                    torch.save({"model":model.state_dict(), "threshold":best_t}, MODEL_SAVE_PATH)
+                    stop_step = step
+                    valid_f1_score = f1
+                    valid_loss = avg_loss
+                    valid_threshold = best_t
+                    print(f"=== Model saved at step {step} with F1-score: {f1:.4f} ===")
+
+    # 마지막 남은 loss 기록
+    if total_loss > 0:
+        avg_loss = total_loss / (step % eval_steps)
+        acc, f1, best_t = evaluate(valid_loader, model, log)
+        print(f"Step {step}, Loss: {avg_loss:.4f}, Accuracy: {acc:.4f}, F1-Score: {f1:.4f}")
+        step_losses.append(avg_loss)
+        step_f1s.append(f1)
+        step_thresholds.append(best_t)
+        if f1 > best_f1_score:
+            best_f1_score = f1
+            torch.save({"model":model.state_dict(), "threshold":best_t}, MODEL_SAVE_PATH)
+            stop_step = step
+            valid_f1_score = f1
+            valid_loss = avg_loss
+            valid_threshold = best_t
+            print(f"=== Model saved at step {step} with F1-score: {f1:.4f} ===")
+
+    df["train"]["step_loss"] = step_losses
+    df["train"]["step_f1"] = step_f1s
+    df["train"]["step_threshold"] = step_thresholds
+    df["stop_step"] = stop_step
+    df["valid_f1_score"] = valid_f1_score
+    df["valid_loss"] = valid_loss
+    df["valid_threshold"] = valid_threshold
+    return df
 
 def train(log):
     set_seed(log.param.SEED)
@@ -115,33 +195,15 @@ def train(log):
     model = CustomBERT(log.param.model_type, hidden_dim=log.param.hidden_size, e=log.param.e).to(device)
     optimizer = optim.AdamW(model.parameters(), lr=log.param.learning_rate)
 
-    best_f1_score = 0.0
-    num_epochs = log.param.nepoch
-    df = {"param":{}, "train":{"loss":[], "f1":[], "threshold":[]}}
+    df = {"param":{}, "train":{}}
     df["param"]["dataset"] = log.param.dataset
     df["param"]["train_batch_size"] = log.param.train_batch_size
     df["param"]["learning_rate"] = log.param.learning_rate
     df["param"]["loss"] = log.param.loss
     df["param"]["SEED"] = log.param.SEED
-    for epoch in range(num_epochs):
-        print(f"epoch {epoch+1}")
-        train_loss = train_epoch(train_loader, model, optimizer, criterion, log.param.loss, log)
-        acc, f1, best_t = evaluate(valid_loader, model, log)
-        print(f"Epoch {epoch+1}, Loss: {train_loss:.4f}, Accuracy: {acc:.4f}, F1-Score: {f1:.4f}")
-        
-        df["train"]["loss"].append(train_loss)
-        df["train"]["f1"].append(f1)
-        df["train"]["threshold"].append(best_t)
 
-        if f1 > best_f1_score:
-            best_f1_score = f1
-            torch.save({"model":model.state_dict(), "threshold":best_t}, MODEL_SAVE_PATH)
-            df["stop_epoch"] = epoch+1
-            df["valid_f1_score"] = f1
-            df["valid_loss"] = train_loss
-            df["valid_threshold"] = best_t
-            print(f"=== Model saved at epoch {epoch+1} with F1-score: {f1:.4f} ===")
-    
+    df = train_steps(train_loader, valid_loader, model, optimizer, criterion, log.param.loss, log, df, MODEL_SAVE_PATH)
+
     with open(f"./save/{log.param.dataset}/seed_{log.param.SEED}/lambda_{log.param.e}/log.json", 'w') as file:
         json.dump(df, file)
 

@@ -63,16 +63,13 @@ class CustomBERT(nn.Module):
         expanded_idx = head_token_idx.unsqueeze(-1).expand(-1, -1, hidden_dim)  # [batch, max_num_head, hidden_dim]
         head_token_embeddings = torch.gather(outputs.last_hidden_state, 1, expanded_idx)  # [batch, max_num_head, hidden_dim]
 
-        # head_token_idx가 모두 0 (즉, 개체명 없음, CLS만 head)인 경우 바로 분류기로
-        if torch.all(head_token_idx == 0):
-            final_embedding = cls_embedding
-        else:
-            outputs_list = []
-            for i in range(head_token_embeddings.shape[1]):
-                output = self.head_attention(cls_embedding, head_token_embeddings[:, i, :])
-                outputs_list.append(output)
-            head_attention_output = sum(outputs_list)
-            final_embedding = cls_embedding + head_attention_output * self.e
+        outputs_list = []
+        for i in range(head_token_embeddings.shape[1]):
+            output = self.head_attention(cls_embedding, head_token_embeddings[:, i, :])
+            outputs_list.append(output)
+        
+        head_attention_output = sum(outputs_list)
+        final_embedding = cls_embedding + head_attention_output * self.e
 
         logits = self.classifier(final_embedding)
         return logits

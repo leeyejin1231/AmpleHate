@@ -14,15 +14,11 @@ device = torch.device('cuda')
 
 
 def set_seed(seed=42):
-    """
-    랜덤 시드 고정
-    """
     random.seed(seed)
     np.random.seed(seed)
     torch.manual_seed(seed)
-    torch.cuda.manual_seed_all(seed)  # GPU 사용 시에도 시드 고정
+    torch.cuda.manual_seed_all(seed)
 
-    # CUDNN 설정 (연산 속도 vs 재현성 선택)
     torch.backends.cudnn.deterministic = True
     torch.backends.cudnn.benchmark = False
 
@@ -31,6 +27,7 @@ def test_model(dataloader, model, threshold):
     print("---Start Test!---")
     model.eval()
     predictions, true_labels = [], []
+    all_input_ids = []
 
     with torch.no_grad():
         for batch in tqdm(dataloader):
@@ -40,16 +37,16 @@ def test_model(dataloader, model, threshold):
             labels = batch["labels"].to(device)
 
             outputs = model(input_ids, head_token_idx, attention_mask)
-            # preds = torch.argmax(outputs, dim=1)
             preds = (torch.softmax(outputs, dim=1)[:, 1] >= threshold)
 
             predictions.extend(preds.cpu().numpy())
             true_labels.extend(labels.cpu().numpy())
+            all_input_ids.extend(input_ids.cpu().numpy())
 
     accuracy = accuracy_score(true_labels, predictions)
     f1 = f1_score(true_labels, predictions, average="weighted")
 
-    return accuracy, f1, predictions, true_labels
+    return accuracy, f1, predictions, true_labels, all_input_ids
 
 
 def test(log):
@@ -66,19 +63,15 @@ def test(log):
     ckpt = torch.load(f"./save/{log.param.model_path}/best_model.pth")
     threshold = ckpt["threshold"]
         
-    # model.load_state_dict(torch.load(f"./save/{log.param.model_path}/best_model.pth"))
     model.load_state_dict(ckpt["model"])
     model.to(device)
 
-    test_accuracy, test_f1, predictions, _ = test_model(test_loader, model, threshold)
-
-    df = pd.DataFrame()
-    df["label"] = predictions
-    # df.to_csv(f'./save/{log.param.dataset}/SST-2.tsv', sep="\t", index=False)
+    test_accuracy, test_f1, predictions, true_labels, all_input_ids = test_model(test_loader, model, threshold)
 
     print(f"Dataset: {log.param.dataset}")
     print(f"Test Accuracy: {test_accuracy*100:.2f}")
     print(f"Test F1-Score: {test_f1*100:.2f}")
+    print(f"Wrong predictions saved to ./save/{log.param.dataset}/wrong_predictions.csv")
 
 
 if __name__ == '__main__':

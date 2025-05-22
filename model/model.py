@@ -15,9 +15,9 @@ class HeadAttention(nn.Module):
         self.W_v = nn.Linear(hidden_dim, head_dim, bias=False)
 
     def forward(self, cls_embedding, head_token_embedding):
-        Q_h = self.W_q(cls_embedding)   # [CLS]의 Query
-        K_h = self.W_k(head_token_embedding)  # 특정 토큰의 Key
-        V_h = self.W_v(cls_embedding)  # [CLS]의 Value
+        Q_h = self.W_q(cls_embedding)   # [CLS] Query
+        K_h = self.W_k(head_token_embedding)  # Target Token Key
+        V_h = self.W_v(cls_embedding)  # [CLS] Value
 
         attention_scores = torch.matmul(Q_h, K_h.T) / (self.head_dim ** 0.5)
         attention_scores = attention_scores.float()
@@ -25,17 +25,6 @@ class HeadAttention(nn.Module):
 
         output = torch.matmul(attention_weights, V_h)
         return output
-    
-
-class LinearHeadAttention(nn.Module):
-    def __init__(self, head_dim):
-        super(HeadAttention, self).__init__()
-        self.head_dim = head_dim
-
-        self.W = nn.Linear(head_dim, head_dim, bias=False)
-
-    def forward(self, _, head_token_embedding):
-        return self.W(head_token_embedding)
     
 
 class CustomBERT(nn.Module):
@@ -46,19 +35,17 @@ class CustomBERT(nn.Module):
         self.hidden_dim = hidden_dim
         self.e = e
 
-        # Head-Attention 추가
+        # Head-Attention
         self.head_attention = HeadAttention(hidden_dim, hidden_dim)
-        # self.head_attention = LinearHeadAttention(hidden_dim)
 
-        # 최종 분류기
-        self.classifier = nn.Linear(hidden_dim, 2)  # non-hate(0) / hate(1) 이진 분류
+        # Classifier
+        self.classifier = nn.Linear(hidden_dim, 2)  # non-hate(0) / hate(1) 
 
     def forward(self, input_ids, head_token_idx, attention_mask):
         outputs = self.bert(input_ids, attention_mask=attention_mask, output_hidden_states=True)
 
         cls_embedding = outputs.last_hidden_state[:, 0, :]
 
-        # Head-Token 위치 추출 (여러 개)
         hidden_dim = outputs.last_hidden_state.shape[-1]
         expanded_idx = head_token_idx.unsqueeze(-1).expand(-1, -1, hidden_dim)  # [batch, max_num_head, hidden_dim]
         head_token_embeddings = torch.gather(outputs.last_hidden_state, 1, expanded_idx)  # [batch, max_num_head, hidden_dim]

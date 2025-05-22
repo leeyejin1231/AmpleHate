@@ -13,20 +13,17 @@ from utils import NERTagger, get_dataloader, iter_product
 from model import CustomBERT, ContrastiveLossCosine
 from config import train_config
 from easydict import EasyDict as edict
+from utils.dataloader import ner_coverage_statistics
 
 device = torch.device('cuda')
 
 
 def set_seed(seed=42):
-    """
-    랜덤 시드 고정
-    """
     random.seed(seed)
     np.random.seed(seed)
     torch.manual_seed(seed)
-    torch.cuda.manual_seed_all(seed)  # GPU 사용 시에도 시드 고정
+    torch.cuda.manual_seed_all(seed)
 
-    # CUDNN 설정 (연산 속도 vs 재현성 선택)
     torch.backends.cudnn.deterministic = True
     torch.backends.cudnn.benchmark = False
 
@@ -102,10 +99,7 @@ def train(log):
     if "ihc" in log.param.dataset:
         train_loader = get_dataloader(f"./data/{log.param.dataset}/train.tsv", tokenizer, ner_tagger=ner_tagger, use_ner=True,  batch_size=log.param.train_batch_size, seed=log.param.SEED)
         valid_loader = get_dataloader(f"./data/{log.param.dataset}/valid.tsv", tokenizer, ner_tagger=None, use_ner=False, batch_size=log.param.train_batch_size, seed=log.param.SEED)
-    elif "SST" in log.param.dataset:
-        train_loader = get_dataloader(f"./data/{log.param.dataset}/train.tsv", tokenizer, ner_tagger=ner_tagger, use_ner=True,  batch_size=log.param.train_batch_size, seed=log.param.SEED)
-        valid_loader = get_dataloader(f"./data/{log.param.dataset}/dev.tsv", tokenizer, ner_tagger=None, use_ner=False, batch_size=log.param.train_batch_size, seed=log.param.SEED)
-    elif "dynahate" in log.param.dataset or "sbic" in log.param.dataset:
+    elif "dynahate" in log.param.dataset:
         train_loader = get_dataloader(f"./data/{log.param.dataset}/train.csv", tokenizer, ner_tagger=ner_tagger, use_ner=True,  batch_size=log.param.train_batch_size, seed=log.param.SEED)
         valid_loader = get_dataloader(f"./data/{log.param.dataset}/dev.csv", tokenizer, ner_tagger=None, use_ner=False, batch_size=log.param.train_batch_size, seed=log.param.SEED)
     else:

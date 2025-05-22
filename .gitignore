@@ -8,11 +8,12 @@
 
 ## PyTorch
 *.out
-*.ipynb
 *.sh
+*.ipynb
 data/
 dataset/
 save/
+step/
 *.sh
 .coverage
 coverage.xml

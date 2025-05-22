@@ -4,16 +4,11 @@ from utils import NERProcessor
 from torch.utils.data import Dataset, DataLoader
 import random
 import numpy as np
+from tqdm import tqdm
 
 class CustomNERDataset(Dataset):
     def __init__(self, csv_file, tokenizer, ner_tagger=None, use_ner=True):
-        """
-        csv_file: 데이터 파일 경로 (post, label)
-        tokenizer: BERT 토크나이저
-        ner_tagger: NER 태깅 모델
-        """
         self.csv_file = csv_file
-
         if ".tsv" in csv_file:
             self.data = pd.read_csv(csv_file, delimiter="\t")
         else:
@@ -35,16 +30,9 @@ class CustomNERDataset(Dataset):
         elif "dyna" in self.csv_file:
             class2int = {'nothate':0 ,'hate': 1}
             text, label = row["text"], class2int[row["label"]]
-        elif "SST" in self.csv_file:
-            text, label = row['sentence'], row['label']
-            text = row['sentence']
-        elif "IMDB" in self.csv_file:
-            class2int = {'positive':0 ,'negative': 1}
-            text, label = row['review'], class2int[row["sentiment"]]
         else:
             text, label = row["post"], row["label"]
 
-        # 토큰화 및 Head-Token 인덱스 추출
         token_ids, head_token_idx, attention_mask = self.processor.tokenize_and_encode(text)
         token_ids = torch.tensor(token_ids, dtype=torch.long)
         head_token_idx = torch.tensor(head_token_idx, dtype=torch.long)
@@ -59,23 +47,16 @@ class CustomNERDataset(Dataset):
         }
 
 def set_seed(seed=42):
-    """
-    랜덤 시드 고정
-    """
     random.seed(seed)
     np.random.seed(seed)
     torch.manual_seed(seed)
-    torch.cuda.manual_seed_all(seed)  # GPU 사용 시에도 시드 고정
+    torch.cuda.manual_seed_all(seed)  
 
-    # CUDNN 설정 (연산 속도 vs 재현성 선택)
     torch.backends.cudnn.deterministic = True
     torch.backends.cudnn.benchmark = False
 
 
 def collate_fn(batch):
-    """
-    DataLoader에서 batch 단위로 데이터를 처리하는 함수
-    """
     # Get max length in batch
     max_len = max(len(item["head_token_idx"]) for item in batch)
     
@@ -99,7 +80,6 @@ def collate_fn(batch):
         "attention_mask": attention_mask
     }
 
-# 데이터 로더 설정
 def get_dataloader(csv_file, tokenizer, ner_tagger, use_ner, batch_size=16, shuffle=True, seed=42):
     set_seed(seed)
     print("---Start dataload---")
@@ -109,3 +89,12 @@ def get_dataloader(csv_file, tokenizer, ner_tagger, use_ner, batch_size=16, shuf
     dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=shuffle, collate_fn=collate_fn, generator=g)
     print("---End dataload---")
     return dataloader
+
+def ner_coverage_statistics(dataset):
+    total = len(dataset)
+    ner_applied = 0
+    for i in tqdm(range(total)):
+        item = dataset[i]
+        if not (len(item["head_token_idx"]) == 1 and item["head_token_idx"][0].item() == 0):
+            ner_applied += 1
+    print(f"NER tagging applied: {ner_applied}/{total} ({ner_applied/total*100:.2f}%)")

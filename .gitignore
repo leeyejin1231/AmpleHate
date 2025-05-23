@@ -7,8 +7,13 @@
 # refactoring this file!
 
 ## PyTorch
+*.out
+*.sh
+*.ipynb
 data/
+dataset/
 save/
+step/
 *.sh
 .coverage
 coverage.xml

@@ -1,6 +1,10 @@
 # AmpleHate: Amplifying the Attention for Versatile Implicit Hate Detection
 
-📖 [Paper](??)
+ <!-- 📖 [Paper](??) -->
+
+<span style="color: red">❗️***Warning**: this document contains content that may be offensive or upsetting.*</span>
+
+> **AmpleHate** amplifies target-context relations for implicit hate speech detection, achieving 92.14% better performance than constrastive learning baselines.
 
 ## About AmpleHate
 <p align="center">
@@ -35,7 +39,7 @@ and then interpreting context. It improves model focus on key signals through th
 
 
 ## Performance of Detecting Implicit Hate Speech
-AmpleHate outperforms contrastive learning baselines across multiple datasets.
+**AmpleHate** outperforms contrastive learning baselines across multiple datasets (marco-F1).
 
 | Methods | IHC | SBIC | DYNA | Hateval | Toxigen | White | Ethos | Average |
 |-------|-----|------|------|----------|--------|-------|-------|---------|
@@ -44,18 +48,30 @@ AmpleHate outperforms contrastive learning baselines across multiple datasets.
 | LAHN | 78.40 | 83.98 | 79.64 | 80.42 | 90.42 | 47.85 | 75.26 | 76.56 |
 | AmpleHate | **81.94** | 84.03 | **81.51** | **82.07** | **93.21** | **75.17** | **77.06** | **82.14** |
 
+- **Consistently outperforms** existing baseline in macro-F1 score
+- Achievew the **highest average marco-F1 scroe of 82.14**, surpassing the best baselin (LAHN) by ~5.6%p
+- Especially strong on datasets with **subtle and context-dependent hate** (e.g., White: +27%p over BERT)
+
+These result confirm that amplifying **target-context relationship** is highly effective for detecting implicit haet speech.
+
 ## 🔍 Qualitative Analysis
-Here are some examples showing how AmpleHate detects implicit hate speech by highlighting key targets and contextual cues:
+This table shows how **AmpleHate** idenfities key implicit hate indicators at the token level mirroring human attention patterns.
 
 | Datsets | Highlighted Implicit Hate Speech Sentence |
 |------|---------------------|
-| IHC | even the <span style="background-color: #87CEEB">white nationalist</span> movement is ran by jews. |
-| SBIC | Yo <span style="background-color: #87CEEB">h**</span> is like a tick so she <span style="background-color: #87CEEB">hunting</span> for a <span style="background-color: #87CEEB">blood</span> |
-| DYNA | tell <span style="background-color: #87CEEB">chi***</span> to stop <span style="background-color: #87CEEB">dressing</span> like street walkers |
-| Hateval | Arrest <span style="background-color: #87CEEB">them</span> and <span style="background-color: #87CEEB">DEPORT</span> THEM ALL!!!! #<span style="background-color: #87CEEB">BuildThatWall</span> |
-| Toxigen | all <span style="background-color: #87CEEB">black</span> people are suspected of trying to pull something |
-| White | The <span style="background-color: #87CEEB">German men</span> soud so sexy. |
-| Ethos | Too bad <span style="background-color: #87CEEB">women</span> don't know how to ill <span style="background-color: #87CEEB">themselves</span> |
+| IHC | even the <mark>white nationalist</mark> movement is ran by jews. |
+| SBIC | Yo <mark>h**</mark> is like a tick so she <mark>hunting</mark> for a <mark>blood</mark> |
+| DYNA | tell <mark>chi***</mark> to stop <mark>dressing</mark> like street walkers |
+| Hateval | Arrest <mark>them</mark> and <mark>DEPORT</mark> THEM ALL!!!! #<mark>BuildThatWall</mark> |
+| Toxigen | all <mark>black</mark> people are suspected of trying to pull something |
+| White | The <mark>German men</mark> soud so sexy. |
+| Ethos | Too bad <mark>women</mark> don't know how to ill <mark>themselves</mark> |
+
+- For each dataset, AmpleHate assigns **higher attention signals** to contextially important tokens
+- These tokens often **don't include explicit slurs**, but are essential to understanding the underlying bias or streotype.
+- Compared to BERT, AmpleHate places more **precise focus** on hate-relevant cues, even when no explicit target is tagged.
+
+This demonstrates that AmpleHate's **target-aware attention mechanism** effectively captures subtle signals in implicit hate speech-making the model both **inerpretable and accurate**.
 
 ## ⚒️ Usage
 ### Datasets

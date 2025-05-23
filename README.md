@@ -49,13 +49,13 @@ Here are some examples showing how AmpleHate detects implicit hate speech by hig
 
 | Datsets | Highlighted Implicit Hate Speech Sentence |
 |------|---------------------|
-| IHC | even the <span style="background-color: #87CEEB">white nationalist</span> movement is ran by jews. |
-| SBIC | Yo <span style="background-color: #87CEEB">h**</span> is like a tick so she <span style="background-color: #87CEEB">hunting</span> for a <span style="background-color: #87CEEB">blood</span> |
-| DYNA | tell <span style="background-color: #87CEEB">chi***</span> to stop <span style="background-color: #87CEEB">dressing</span> like street walkers |
-| Hateval | Arrest <span style="background-color: #87CEEB">them</span> and <span style="background-color: #87CEEB">DEPORT</span> THEM ALL!!!! #<span style="background-color: #87CEEB">BuildThatWall</span> |
-| Toxigen | all <span style="background-color: #87CEEB">black</span> people are suspected of trying to pull something |
-| White | The <span style="background-color: #87CEEB">German men</span> soud so sexy. |
-| Ethos | Too bad <span style="background-color: #87CEEB">women</span> don't know how to ill <span style="background-color: #87CEEB">themselves</span> |
+| IHC | even the <mark>white nationalist</mark> movement is ran by jews. |
+| SBIC | Yo <mark>h**</mark> is like a tick so she <mark>hunting</mark> for a <mark>blood</mark> |
+| DYNA | tell <mark>chi***</mark> to stop <mark>dressing</mark> like street walkers |
+| Hateval | Arrest <mark>them</mark> and <mark>DEPORT</mark> THEM ALL!!!! #<mark>BuildThatWall</mark> |
+| Toxigen | all <mark>black</mark> people are suspected of trying to pull something |
+| White | The <mark>German men</mark> soud so sexy. |
+| Ethos | Too bad <mark>women</mark> don't know how to ill <mark>themselves</mark> |
 
 ## ⚒️ Usage
 ### Datasets

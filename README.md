@@ -1,10 +1,11 @@
 # AmpleHate: Amplifying the Attention for Versatile Implicit Hate Detection
 
- <!-- 📖 [Paper](??) -->
+📖 [Paper](https://arxiv.org/abs/2505.19528)
 
 <span style="color: red">❗️***Warning**: this document contains content that may be offensive or upsetting.*</span>
 
 > **AmpleHate** amplifies target-context relations for implicit hate speech detection, achieving 92.14% better performance than constrastive learning baselines.
+ 
 
 ## About AmpleHate
 <p align="center">

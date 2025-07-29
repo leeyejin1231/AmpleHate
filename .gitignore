@@ -13,6 +13,7 @@
 data/
 dataset/
 save/
+results/
 *.sh
 .coverage
 coverage.xml

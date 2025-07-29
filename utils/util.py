@@ -7,4 +7,3 @@ def iter_product(*args, repeat=1):
         result = [x+[y] for x in result for y in pool]
     for prod in result:
         yield tuple(prod)
-        

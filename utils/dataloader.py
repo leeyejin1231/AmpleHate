@@ -19,7 +19,7 @@ class CustomNERDataset(Dataset):
         else:
             self.data = pd.read_csv(csv_file)
         self.tokenizer = tokenizer
-        self.processor = NERProcessor(tokenizer, ner_tagger, use_ner)
+        self.processor = NERProcessor(tokenizer, len(self.data), ner_tagger, use_ner)
 
     def __len__(self):
         return len(self.data)

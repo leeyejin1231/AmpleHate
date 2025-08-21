@@ -78,7 +78,7 @@ This demonstrates that AmpleHate's **target-aware attention mechanism** effectiv
 Dataset file route: `./data/{dataset_name}`  
 We used the [IHC](https://github.com/SALT-NLP/implicit-hate), [SBIC](https://maartensap.com/social-bias-frames/), 
 [DYNA](https://github.com/bvidgen/Dynamically-Generated-Hate-Speech-Dataset), [Hateval](https://aclanthology.org/S19-2081/), 
-[Toxigen](https://github.com/microsoft/ToxiGen), [White](https://github.com/Vicomtech/hate-speech-dataset) 
+[Toxigen](https://github.com/microsoft/ToxiGen), [White](https://github.com/Vicomtech/hate-speech-dataset),
 and [Ethos](https://github.com/intelligence-csd-auth-gr/Ethos-Hate-Speech-Dataset) datasets.
 ### Environment Setup
 Install the necessary dependencises using the provided requirements  

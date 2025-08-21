@@ -1,6 +1,6 @@
 # AmpleHate: Amplifying the Attention for Versatile Implicit Hate Detection
 
-📖 [Paper](https://arxiv.org/abs/2505.19528)
+📖 [Paper](https://arxiv.org/abs/2505.19528) (EMNLP 2025)
 
 <span style="color: red">❗️***Warning**: this document contains content that may be offensive or upsetting.*</span>
 

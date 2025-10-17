@@ -1,25 +1,38 @@
 # AmpleHate: Amplifying the Attention for Versatile Implicit Hate Detection
 
-📖 [Paper](https://arxiv.org/abs/2505.19528) (EMNLP 2025)
+<p align="center">
+  <a href="https://github.com/leeyejin1231/AmpleHate/stargazers">
+    <img src="https://img.shields.io/github/stars/leeyejin1231/AmpleHate?style=social" alt="GitHub Repo stars">
+  </a>
+  <a href="https://github.com/leeyejin1231/AmpleHate/commits/main">
+    <img src="https://img.shields.io/github/last-commit/leeyejin1231/AmpleHate" alt="GitHub last commit">
+  </a>
+  <a href="https://github.com/leeyejin1231/AmpleHate/graphs/contributors">
+    <img src="https://img.shields.io/github/contributors/leeyejin1231/AmpleHate?color=orange" alt="GitHub contributors">
+  </a>
+</p>
+
+<div align="center">
+    <a href="https://arxiv.org/abs/2505.19528"><b>📖 </b>Paper</a>(EMNLP 2025)
+</div><br>
 
 <span style="color: red">❗️***Warning**: this document contains content that may be offensive or upsetting.*</span>
 
 > **AmpleHate** amplifies target-context relations for implicit hate speech detection, achieving 92.14% better performance than constrastive learning baselines.
 
-## About AmpleHate
+## 🛜 About AmpleHate
 <p align="center">
   <img src="./assets/introduction.png" alt="AmpleHate Overview" width="400"/>
 </p>
 
 **AmpleHate** amplifies target-context relationships for implicit hate speech detection.
 Unlike explicit hate, implicit hate is subtle and depends heavily on context rather than offensive language. 
-While existing models use contrastive learning, humans typically identify hate by first recognizing targets 
-and then evaluating their context. Inspired by this process, AmpleHate uses a pre-trained Named Entity Recognition 
-model to detect explicit targets and [CLS] tokens for implicit cues. It then applies attention-based mechanisms 
-to model relationships between targets and context, directly integrating these signals into the sentence 
-representation. This approach significantly boosts detection accuracy and achieves state-of-the-art results.
 
-## Detection Framework
+While existing models use contrastive learning, humans typically identify hate by first **recognizing targets and then evaluating their context**. Inspired by this process, AmpleHate uses a pre-trained Named Entity Recognition model to **detect explicit targets** and [CLS] tokens for **implicit cues**. 
+
+It then applies **attention-based mechanisms** to model relationships between targets and context, directly integrating these signals into the sentence representation. This approach **significantly boosts detection accuracy** and achieves state-of-the-art results.
+
+## 🕵️‍♂️ Detection Framework
 <p align="center">
   <img src="./assets/overview.png" alt="AmpleHate Overview" width="700"/>
 </p>
@@ -38,7 +51,7 @@ and then interpreting context. It improves model focus on key signals through th
     - This amplifies relevant target-context signals while reducing noise, making predictions more precise and human-aligned.
 
 
-## Performance of Detecting Implicit Hate Speech
+## 🔬 Performance of Detecting Implicit Hate Speech
 **AmpleHate** outperforms contrastive learning baselines across multiple datasets (marco-F1).
 
 | Methods | IHC | SBIC | DYNA | Hateval | Toxigen | White | Ethos | Average |
@@ -73,7 +86,7 @@ This table shows how **AmpleHate** idenfities key implicit hate indicators at th
 
 This demonstrates that AmpleHate's **target-aware attention mechanism** effectively captures subtle signals in implicit hate speech-making the model both **inerpretable and accurate**.
 
-## ⚒️ Usage
+## ⚒️ Setup
 ### Datasets
 Dataset file route: `./data/{dataset_name}`  
 We used the [IHC](https://github.com/SALT-NLP/implicit-hate), [SBIC](https://maartensap.com/social-bias-frames/), 
@@ -86,6 +99,8 @@ Install the necessary dependencises using the provided requirements
 $ pip install -r requirements.txt
 ```
 
+## 🚀 Usage
+
 ### Train
 Modify the `config/train_config.py` file.   
 ```bash
@@ -96,4 +111,16 @@ $ python train.py
 Modify the `config/test_config.py` file.   
 ```bash
 $ python test.py
+```
+## Citation
+```
+@misc{lee2025amplehateamplifyingattentionversatile,
+      title={AmpleHate: Amplifying the Attention for Versatile Implicit Hate Detection}, 
+      author={Yejin Lee and Joonghyuk Hahn and Hyeseon Ahn and Yo-Sub Han},
+      year={2025},
+      eprint={2505.19528},
+      archivePrefix={arXiv},
+      primaryClass={cs.CL},
+      url={https://arxiv.org/abs/2505.19528}, 
+}
 ```
